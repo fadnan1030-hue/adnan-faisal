@@ -94,6 +94,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     --shine:linear-gradient(125deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,0) 45%);
     --accent-strip:linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,0));
   }
+  :root[data-theme="tech"]{
+    --bg:#0a0e17; --card:linear-gradient(160deg,#141a26 0%,#0f1420 62%,#0a0e17 100%); --card-solid:#121826;
+    --border:#1f2a3d; --text:#f2f6ff; --text2:#8fa8cc;
+    --blue:#0066ff; --teal:#00c9e0;
+    --card-shadow:0 14px 30px -12px rgba(0,102,255,.4), 0 1px 0 rgba(0,229,255,.12) inset, 0 -1px 0 rgba(0,0,0,.4) inset;
+    --btn-primary-bg:linear-gradient(180deg,#3ea0ff,#0066ff 60%,#0047b3);
+    --btn-shadow:0 3px 14px -3px rgba(0,102,255,.7);
+    --shine:linear-gradient(125deg, rgba(0,229,255,.18) 0%, rgba(0,229,255,0) 45%);
+    --accent-strip:linear-gradient(180deg, rgba(0,229,255,.55), rgba(0,229,255,0));
+  }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;transition:background .15s,color .15s;}
   .topbar{background:var(--navy);color:#fff;padding:16px 24px;}
@@ -815,9 +825,10 @@ const THEMES = [
   { id:'light', label:'Classic Light', swatch:'linear-gradient(135deg,#ffffff,#dde3ee)' },
   { id:'ocean', label:'Ocean Glass', swatch:'linear-gradient(135deg,#eaf4fd,#1667B3)' },
   { id:'sunrise', label:'Sunrise Gold', swatch:'linear-gradient(135deg,#fff3e0,#F28021)' },
-  { id:'graphite', label:'Graphite Steel', swatch:'linear-gradient(135deg,#eef1f5,#33455a)' }
+  { id:'graphite', label:'Graphite Steel', swatch:'linear-gradient(135deg,#eef1f5,#33455a)' },
+  { id:'tech', label:'Tech Innovation', swatch:'linear-gradient(135deg,#00e5ff,#0066ff 55%,#0a0e17)' }
 ];
-function isDarkMode(){ return document.documentElement.getAttribute('data-theme')==='dark'; }
+function isDarkMode(){ return ['dark','tech'].includes(document.documentElement.getAttribute('data-theme')); }
 function cssVar(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 function chartColors(){
   return {
