@@ -216,6 +216,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .badge-abc-a{background:#fbe4e4;color:#a12f28;}
   .badge-abc-b{background:#fdf1d4;color:#8a6300;}
   .badge-abc-c{background:#e2f0fb;color:#0c3962;}
+  .badge-abc-d{background:#eceff3;color:#4a5568;}
   .day-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;margin:0 6px 6px 0;}
   .day-chip button{border:none;background:none;padding:0;cursor:pointer;color:var(--text2);font-size:14px;line-height:1;}
   .day-chip button:hover{color:var(--red);}
@@ -361,12 +362,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
             <select id="afDiscipline"><option value="PM">PM</option><option value="CM">CM</option><option value="General">Other</option><option value="EmergencyCallout">Emergency Callout</option></select>
           </div>
           <div class="field"><label>ABC Indicator (SCE class)</label>
-            <select id="afAbcIndicator"><option value="">Not tagged</option><option value="A">A - SCE (counts in SCE KPI)</option><option value="B">B - not counted in SCE KPI</option><option value="C">C - not counted in SCE KPI</option></select>
+            <select id="afAbcIndicator"><option value="">Not tagged</option><option value="A">A - SCE (counts in SCE KPI)</option><option value="B">B - not counted in SCE KPI</option><option value="C">C - not counted in SCE KPI</option><option value="D">D - not counted in SCE KPI</option></select>
+          </div>
+          <div class="field"><label>Priority</label>
+            <select id="afPriority"><option value="">Not set</option><option value="1-Emergency">1 - Emergency</option><option value="2-High">2 - High</option><option value="3-Medium">3 - Medium</option><option value="4-Low">4 - Low</option></select>
           </div>
           <div class="field" style="grid-column:1/3;"><label>Activity</label><input type="text" id="afActivity" placeholder="e.g. Fix back RV (Size 0.5in 150# RF)"></div>
           <div class="field"><label>Location</label><input type="text" id="afLocation" list="dlLocation" placeholder="AR-AREA1"><datalist id="dlLocation"></datalist></div>
           <div class="field"><label>Sort field (equipment)</label><input type="text" id="afSortField" list="dlSortField" placeholder="X-A9902C"><datalist id="dlSortField"></datalist></div>
-          <div class="field"><label>SAP # (WO/notification)</label><input type="text" id="afSapNumber" placeholder="401572541"></div>
+          <div class="field"><label>Work order # (SAP notification)</label><input type="text" id="afSapNumber" placeholder="401572541"></div>
           <div class="field"><label>Reference #</label><input type="text" id="afReferenceNumber" placeholder="Permit / JSA / other ref"></div>
           <div class="field"><label>Plan start</label><input type="date" id="afPlanStart"></div>
           <div class="field"><label>Plan finish</label><input type="date" id="afPlanFinish"></div>
@@ -389,7 +393,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="card">
         <div class="chart-title">Bulk paste from Excel</div>
         <div class="chart-desc">Copy rows from Excel (or type them) in this exact column order, one activity per line, separated by Tab:<br>
-        <code style="font-size:11px;">Report Date | Scope | Discipline (PM/CM/General/Emergency Callout) | Activity | Location | Sort Field | SAP # | Reference # | Plan Start | Plan Finish | Actual Start | Actual Finish | Planned Hours | Actual Hours | Status | Week | Remarks | ABC Indicator (A/B/C, optional)</code></div>
+        <code style="font-size:11px;">Report Date | Scope | Discipline (PM/CM/General/Emergency Callout) | Activity | Location | Sort Field | Work Order # | Reference # | Plan Start | Plan Finish | Actual Start | Actual Finish | Planned Hours | Actual Hours | Status | Week | Remarks | ABC Indicator (A/B/C/D, optional) | Priority (optional)</code></div>
         <textarea id="bulkPasteArea" rows="8" placeholder="Paste tab-separated rows here..." style="width:100%;margin-top:10px;font:inherit;font-size:12px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);"></textarea>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
           <button class="primary" id="btnBulkImport">Import pasted rows</button>
@@ -682,7 +686,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="chart-desc" id="planForTodayDesc">Activities for the latest report date. Click a row to see its remarks.</div>
       <div class="plan-table-wrap" style="margin-top:10px;">
         <table class="data-table" id="planTable">
-          <thead><tr><th>SAP #</th><th>Reference #</th><th>Sort field</th><th>Discipline</th><th>ABC</th><th>Activity</th><th>Location</th><th>Planned hrs</th><th>Actual hrs</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Work order</th><th>Sort field</th><th>Discipline</th><th>ABC</th><th>Activity</th><th>Location</th><th>Planned hrs</th><th>Actual hrs</th><th>Status</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -1194,7 +1198,7 @@ function findLabelValue(aoa, matchFn, offset){
 
 function normalizeAbc(v){
   if (v==null) return '';
-  const m = String(v).trim().toUpperCase().match(/^[ABC]/);
+  const m = String(v).trim().toUpperCase().match(/^[ABCD]/);
   return m ? m[0] : '';
 }
 function parseDetailSheet(ws){
@@ -1221,7 +1225,8 @@ function parseDetailSheet(ws){
     sapNumber: findExact('wo#'),
     balanceStatus: findExact('balance status'),
     remarks: findExact('remarks'),
-    abcIndicator: findIncludes(c=>c.includes('abc')||c==='sce class'||c==='sce indicator'||c==='criticality')
+    abcIndicator: findIncludes(c=>c.includes('abc')||c==='sce class'||c==='sce indicator'||c==='criticality'),
+    priority: findIncludes(c=>c.includes('priority'))
   };
 
   const rows = [];
@@ -1268,6 +1273,7 @@ function parseDetailSheet(ws){
       balanceStatus,
       remarks: col.remarks>=0 && r[col.remarks]!=null ? String(r[col.remarks]).trim() : '',
       abcIndicator: normalizeAbc(col.abcIndicator>=0 ? r[col.abcIndicator] : null),
+      priority: col.priority>=0 && r[col.priority]!=null ? String(r[col.priority]).trim() : '',
       sheetRow: i
     });
   }
@@ -2242,18 +2248,21 @@ function renderActivityDetail(f, targetKey, targetDate){
   document.getElementById('planForTodayDesc').textContent = targetDate
     ? `Showing ${statusDesc} activities for ${targetDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}. Click a row to see its remarks.`
     : 'No data loaded yet.';
-  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="11" style="color:var(--text2)">Nothing matches this date and filter selection.</td></tr>`; return; }
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">Nothing matches this date and filter selection.</td></tr>`; return; }
   const editableTable = !state.isSnapshot;
   tbody.innerHTML = rows.map((r,i)=>{
     const badgeClass = r.status==='Completed' ? 'badge-completed' : r.status==='In Progress' ? 'badge-progress' : r.status==='Rescheduled' ? 'badge-rescheduled' : 'badge-notstarted';
     const remarksText = r.remarks && r.remarks.trim() ? escapeHtml(r.remarks) : 'No remarks recorded for this activity.';
     const balanceLine = r.balanceStatus && r.balanceStatus.trim() ? `<br><b>Balance status:</b> ${escapeHtml(r.balanceStatus)}` : '';
     const abcCell = r.abcIndicator ? `<span class="badge badge-abc-${r.abcIndicator.toLowerCase()}">${r.abcIndicator}</span>` : '<span style="color:var(--text2)">-</span>';
+    const workOrderCell = r.referenceNumber && r.referenceNumber.trim()
+      ? `${escapeHtml(r.sapNumber)}<br><span style="color:var(--text2);font-size:11px;">Ref: ${escapeHtml(r.referenceNumber)}</span>`
+      : escapeHtml(r.sapNumber);
     const actionsCell = editableTable
       ? `<td><button data-edit="${r.id}" style="padding:3px 8px;font-size:11px;">Edit</button> <button data-del="${r.id}" style="padding:3px 8px;font-size:11px;color:var(--red);">Delete</button></td>`
       : `<td></td>`;
-    return `<tr data-clickable data-idx="${i}"><td>${escapeHtml(r.sapNumber)}</td><td>${escapeHtml(r.referenceNumber)}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${escapeHtml(r.activity)}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
-      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="11"><b>Remarks:</b> ${remarksText}${balanceLine}</td></tr>`;
+    return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${escapeHtml(r.activity)}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
+      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}</td></tr>`;
   }).join('');
   tbody.querySelectorAll('tr[data-clickable]').forEach(tr=>{
     tr.addEventListener('click', (e)=>{
@@ -2439,6 +2448,7 @@ function writeActivityToSheet(row){
   setCell(col.balanceStatus, row.balanceStatus, 's');
   setCell(col.remarks, row.remarks, 's');
   setCell(col.abcIndicator, row.abcIndicator, 's');
+  setCell(col.priority, row.priority, 's');
   if (isNewRow){
     // Carry over styling for any other columns in this row range that we didn't explicitly
     // write (e.g. a "Work Center" column), so the new row still looks like a normal table row.
@@ -2603,6 +2613,7 @@ function readActivityForm(){
     scope: document.getElementById('afScope').value.trim() || null,
     discipline: document.getElementById('afDiscipline').value,
     abcIndicator: document.getElementById('afAbcIndicator').value,
+    priority: document.getElementById('afPriority').value,
     activity: document.getElementById('afActivity').value.trim(),
     location: document.getElementById('afLocation').value.trim(),
     sortField: document.getElementById('afSortField').value.trim(),
@@ -2625,6 +2636,7 @@ function writeActivityForm(row){
   document.getElementById('afScope').value = row.scope || '';
   document.getElementById('afDiscipline').value = row.discipline || 'PM';
   document.getElementById('afAbcIndicator').value = row.abcIndicator || '';
+  document.getElementById('afPriority').value = row.priority || '';
   document.getElementById('afActivity').value = row.activity || '';
   document.getElementById('afLocation').value = row.location || '';
   document.getElementById('afSortField').value = row.sortField || '';
@@ -2642,6 +2654,7 @@ function writeActivityForm(row){
 }
 function clearActivityFormForNext(){
   document.getElementById('afAbcIndicator').value = '';
+  document.getElementById('afPriority').value = '';
   document.getElementById('afActivity').value = '';
   document.getElementById('afLocation').value = '';
   document.getElementById('afSortField').value = '';
@@ -2772,7 +2785,8 @@ on('btnBulkImport', 'click', ()=>{
       status: (cols[14]||'Not Started').trim() || 'Not Started',
       week: (cols[15]||'').trim() || null,
       remarks: (cols[16]||'').trim(),
-      abcIndicator: normalizeAbc(cols[17])
+      abcIndicator: normalizeAbc(cols[17]),
+      priority: (cols[18]||'').trim()
     };
     addActivityRow(row);
     added++;
@@ -2898,7 +2912,7 @@ function buildDetailSheet(rows){
       r.activity||'',
       r.location||'',
       r.abcIndicator||'',
-      '',
+      r.priority||'',
       pmcmCodeForExport(r.discipline),
       r.sortField||'',
       '',
