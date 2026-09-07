@@ -1,0 +1,92 @@
+REUSABLE PROMPT - paste this into a new Claude conversation (with your
+current "Ap Progress DD-Mon-YY.xlsx" workbook attached) whenever you want
+Claude to rebuild, extend, or repair this dashboard system.
+
+--------------------------------------------------------------------------
+Act as an Excel dashboard expert and analyst. I have a linked Excel + HTML
+progress-dashboard system for my daily site report (AP STT1 - Static Team
+Descon Progress, OQ-AP-AMC). Please rebuild / update it to this exact spec:
+
+1. DATA SOURCE - my own workbook, unmodified structure
+   - Read directly from my existing "Ap Progress ...xlsx" workbook's real
+     sheets - do NOT invent a separate master workbook or ask me to retype
+     data into a new schema:
+     - "Detail." sheet: one row per activity, columns (by header text,
+       matched case-insensitively): Work Center, WO#, Scope, Operation
+       Short Text, Location, PM/CM, Plan start date, Earliest Finish date,
+       Actual Start D(t)ae, Ac(u)tal Finish Date, Plan Hrs (Mech), Actual
+       Hrs, Status, Weeks, Remarks.
+     - "HSE KPI" sheet: a Description/Recorded table; the "Lost Time
+       Injury" row's Recorded value (>0 means an LTI happened that day).
+     - "Bar Chart" sheet: a small side panel with label-then-value pairs
+       "Date", "Report #", "Total MH", "LTI Free MH", plus a manpower
+       table (In-Direct / Direct / Total rows with Qty, Daily MH, Cumm MH
+       Yesterday, Cumm MH Today columns). "LTI Free MH" is the running
+       cumulative LTI-free man-hours since project start - it only stays
+       correct if I keep carrying the previous day's "Cumm MH Yesterday"
+       forward each day, which the dashboard should say plainly.
+   - I keep the whole project (day 1 through project close-out) in the
+     SAME "Detail." sheet by pasting each new day's activity rows below
+     the existing ones - each row keeps its own Plan start date, so the
+     dashboard must group/trend by each row's own date, not by "the file's
+     date." Do not assume one file = one day.
+   - Discipline codes: PM/CM column uses ZPM -> "PM", ZCR -> "CM", anything
+     else -> "General".
+
+2. HTML DASHBOARD (a standalone .html file, NOT a hosted web page)
+   - Professional, colorful look: a dark solid-color header bar, KPI cards
+     with a distinct color accent per category (progress = blue, success/
+     completion = green, backlog = red, PM/CM = their own colors,
+     man-hours = purple, safety/LTI = teal/navy).
+   - KPI cards: Total Activities Planned, Overall Completion %, Backlog
+     (open activities), PM Completion % (Plan/Done), CM Completion %
+     (Plan/Done), Man-Hours Variance % (Plan/Actual), Plan for Today
+     (open count), LTI-Free Days (to date), LTI-Free Man-Hours (to date,
+     sourced from the Bar Chart sheet's "LTI Free MH" cell, labelled with
+     which report date it came from).
+   - Charts: S-curve line chart (cumulative planned vs completed by
+     date); a donut/pie chart for "Activities by Discipline" (share of
+     PM/CM/General); a donut/pie chart for "Overall Status Distribution"
+     (Completed/In Progress/Not Started) with % labels on the slices;
+     a bar chart for "Weekly Planned vs Completed" (trend-by-category
+     stays a bar, not a pie). Filters: Scope, Discipline, Week, Status.
+   - A small table showing the Bar Chart sheet's manpower breakdown
+     (In-Direct/Direct/Total x Qty/Daily MH/Cumm Yesterday/Cumm Today).
+   - A "Plan for Today" table: open (non-Completed) activities for the
+     most recent report date in the sheet.
+   - Load the .xlsx via the SheetJS library (from cdnjs) with a native
+     file picker; in Chrome/Edge, persist the file handle (IndexedDB +
+     File System Access API) and poll it every few seconds so the
+     dashboard auto-refreshes shortly after I save the workbook, with no
+     manual "Refresh" click needed. Keep a manual "Refresh now" button and
+     a plain <input type="file"> fallback for browsers without that API.
+   - Cache each report date's rows in localStorage as a fallback/offline
+     view, but always treat the currently loaded Excel file as the source
+     of truth - reloading a date's rows must overwrite, never duplicate,
+     that date's cached entry.
+
+3. PORTABILITY
+   - Keep the HTML file and the .xlsx file together in one folder (mine is
+     "APSTT1 Dashboard" on the Desktop). No absolute paths, no server
+     dependency - moving to another PC just means copying that whole
+     folder and opening the HTML there, then picking the .xlsx via the
+     file button once.
+
+4. DELIVERY
+   - Tell me plainly: which sheet/column to keep adding new daily rows
+     into, which two Bar Chart cells I must update every day (Cumm MH
+     Yesterday, and anything else needed to keep LTI Free MH correct),
+     and what to do if I ever do get a Lost Time Injury (which HSE KPI
+     cell to set). Keep it concrete - I am not an Excel power user.
+--------------------------------------------------------------------------
+
+NOTES FOR NEXT TIME (fill in / edit before reusing):
+- If your "Ap Progress" template's column headers or sheet names change,
+  tell Claude exactly what changed so the header-matching logic can be
+  adjusted (it matches by header text, case-insensitively, not by fixed
+  column letters, so small reorderings are usually fine - renamed
+  headers are not).
+- If you switch back to one file per day instead of one growing sheet,
+  say so - the dashboard already supports both (it groups everything by
+  each row's own date), but the instructions above assume the growing-
+  sheet workflow.

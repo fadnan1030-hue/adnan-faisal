@@ -1,0 +1,8 @@
+# Excel lock files
+~$*
+
+# Auto-generated backups (churn, not source)
+Backups/
+
+# Screen recordings (large, not part of the deliverable)
+*.mp4
