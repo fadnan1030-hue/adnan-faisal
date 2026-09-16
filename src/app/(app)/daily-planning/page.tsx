@@ -50,7 +50,10 @@ export default async function DailyPlanningPage({
     t.setDate(t.getDate() + 1);
     where = { plannedFinishDate: { gte: startOfDay(t), lte: endOfDay(t) } };
   } else if (view === "overdue") {
-    where = { plannedFinishDate: { lt: startOfDay(now) }, status: { notIn: ["COMPLETED", "CLOSED", "CANCELLED"] } };
+    // Matches the dashboard's "Overdue Jobs" KPI exactly (spec section 84 -
+    // overdue is always derived from status + the current instant, never
+    // hand-typed or day-rounded, so the drill-down count matches the card).
+    where = { plannedFinishDate: { lt: now }, status: { notIn: ["COMPLETED", "CLOSED", "CANCELLED"] } };
   } else if (view === "week") {
     const start = startOfDay(now);
     const end = new Date(start);

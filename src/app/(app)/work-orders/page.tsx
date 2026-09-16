@@ -72,7 +72,7 @@ export default async function WorkOrdersPage({
         </select>
         <select name="status" defaultValue={status ?? ""} className={inputClass}>
           <option value="">All statuses</option>
-          {["PLANNED", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "RESCHEDULED", "CANCELLED", "OVERDUE", "CLOSED"].map(
+          {["PLANNED", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "RESCHEDULED", "CANCELLED", "CLOSED"].map(
             (s) => (
               <option key={s} value={s}>
                 {s}

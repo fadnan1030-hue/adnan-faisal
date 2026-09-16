@@ -193,7 +193,7 @@ export default async function DashboardPage({
           label="Overdue Jobs"
           value={String(maintenance.overdueJobs)}
           tone={maintenance.overdueJobs > 0 ? "critical" : "good"}
-          href="/work-orders?status=OVERDUE"
+          href="/daily-planning?view=overdue"
         />
       </div>
 
