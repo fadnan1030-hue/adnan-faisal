@@ -1,0 +1,56 @@
+{
+  "name": "descon-apamc-dashboard",
+  "version": "1.0.0",
+  "description": "Descon AP-AMC Progress & KPIs Monitoring Dashboard (desktop app)",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "package": "electron-packager . \"Descon AP-AMC Dashboard\" --platform=win32 --arch=x64 --out=dist --overwrite --ignore=\"^/dist\" --extra-resource=\"../Descon AP-AMC Progress & KPIs monitoring.html\""
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "build": {
+    "appId": "com.descon.apamcdashboard",
+    "productName": "Descon AP-AMC Dashboard",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../Descon AP-AMC Progress & KPIs monitoring.html",
+        "to": "dashboard.html"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
