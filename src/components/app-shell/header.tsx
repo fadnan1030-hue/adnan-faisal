@@ -18,7 +18,7 @@ export async function Header({
   });
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
+    <header className="no-print flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <ProjectSelector projects={projects} currentProjectId={currentProjectId} />
 
       <div className="flex items-center gap-4">

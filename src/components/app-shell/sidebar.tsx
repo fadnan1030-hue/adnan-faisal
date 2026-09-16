@@ -22,7 +22,7 @@ export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white py-4">
+    <nav className="no-print flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white py-4">
       <div className="px-4 pb-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
