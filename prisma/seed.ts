@@ -150,8 +150,9 @@ async function main() {
     { number: "EMP-1005", name: "Priya Instrument Tech", craft: "Instrument Technician", discipline: "INST" },
   ];
 
+  const employeeIds: Record<string, string> = {};
   for (const e of employeeSeed) {
-    await prisma.employee.upsert({
+    const emp = await prisma.employee.upsert({
       where: { projectId_employeeNumber: { projectId: project.id, employeeNumber: e.number } },
       update: {},
       create: {
@@ -164,8 +165,35 @@ async function main() {
         userId: e.userEmail ? createdUsers[e.userEmail] : undefined,
       },
     });
+    employeeIds[e.number] = emp.id;
   }
   console.log(`Seeded ${employeeSeed.length} employees`);
+
+  // Timesheets - last 30 days, weekdays only, 8h + occasional overtime
+  let timesheetCount = 0;
+  for (let i = 0; i < 30; i++) {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - i);
+    if (day.getDay() === 5) continue; // Friday off (regional weekend)
+
+    for (const empNumber of Object.keys(employeeIds)) {
+      await prisma.timesheet.upsert({
+        where: { employeeId_date: { employeeId: employeeIds[empNumber], date: day } },
+        update: {},
+        create: {
+          projectId: project.id,
+          employeeId: employeeIds[empNumber],
+          date: day,
+          status: "PRESENT",
+          normalHours: 8,
+          overtimeHours: i % 6 === 0 ? 2 : 0,
+        },
+      });
+      timesheetCount++;
+    }
+  }
+  console.log(`Seeded ${timesheetCount} timesheet entries`);
 
   // ---------------------------------------------------------------------
   // Equipment master (demo)
@@ -375,6 +403,80 @@ async function main() {
     });
   }
   console.log(`Seeded ${cmPlan.length} CM work orders`);
+
+  // ---------------------------------------------------------------------
+  // HSE / QC demo records
+  // ---------------------------------------------------------------------
+  await prisma.hseIncident.upsert({
+    where: { id: "seed-hse-incident-1" },
+    update: {},
+    create: {
+      id: "seed-hse-incident-1",
+      projectId: project.id,
+      incidentDate: daysFromNow(-14),
+      incidentType: "FIRST_AID",
+      description: "Minor cut while handling strainer basket during cleaning.",
+      location: "Area 3",
+      personnelAffected: "1 technician",
+      investigationStatus: "CLOSED",
+      rootCause: "Sharp edge on basket rim not deburred.",
+      correctiveActions: "Basket edges reworked; toolbox talk conducted.",
+      closureDate: daysFromNow(-10),
+    },
+  });
+
+  await prisma.hseObservation.upsert({
+    where: { id: "seed-hse-obs-1" },
+    update: {},
+    create: {
+      id: "seed-hse-obs-1",
+      projectId: project.id,
+      date: daysFromNow(-3),
+      observer: "Hana HSE",
+      area: "Area 2",
+      equipmentTag: "P-201A",
+      category: "PTW",
+      isPositive: false,
+      description: "Permit displayed at work site was for a different equipment tag.",
+      immediateAction: "Work paused, correct permit issued.",
+      responsiblePerson: "Sam Supervisor",
+      targetDate: daysFromNow(2),
+      status: "IN_PROGRESS",
+    },
+  });
+
+  await prisma.qcInspection.upsert({
+    where: { id: "seed-qc-insp-1" },
+    update: {},
+    create: {
+      id: "seed-qc-insp-1",
+      projectId: project.id,
+      date: daysFromNow(-6),
+      equipmentTag: "V-401",
+      inspectionType: "Functional Test",
+      inspector: "Quentin QC",
+      result: "PASS",
+      remarks: "ESD valve stroke test within spec.",
+    },
+  });
+
+  await prisma.ncr.upsert({
+    where: { projectId_ncrNumber: { projectId: project.id, ncrNumber: "NCR-0001" } },
+    update: {},
+    create: {
+      projectId: project.id,
+      ncrNumber: "NCR-0001",
+      date: daysFromNow(-9),
+      equipmentTag: "C-301",
+      description: "Torque values for coupling bolts not recorded on work pack.",
+      category: "DOCUMENTATION",
+      severity: "MINOR",
+      responsiblePerson: "Elena Engineer",
+      targetDate: daysFromNow(5),
+      status: "OPEN",
+    },
+  });
+  console.log("Seeded HSE and QC demo records");
 
   return { project, createdUsers, equipmentIds };
 }
