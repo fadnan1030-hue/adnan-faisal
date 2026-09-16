@@ -383,6 +383,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           </div>
           <div class="field"><label>Balance status (optional)</label><input type="text" id="afBalanceStatus"></div>
           <div class="field" style="grid-column:1/3;"><label>Remarks</label><textarea id="afRemarks" rows="2" style="font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);"></textarea></div>
+          <div class="field" style="grid-column:1/3;"><label>Photo (optional, e.g. strainer cleaning before/after)</label>
+            <input type="file" id="afPhoto" accept="image/*">
+            <div id="afPhotoPreviewWrap" style="display:none;margin-top:8px;">
+              <img id="afPhotoPreview" style="max-width:160px;max-height:120px;border-radius:8px;border:1px solid var(--border);display:block;object-fit:cover;">
+              <button type="button" id="afPhotoRemove" class="subtle" style="margin-top:6px;font-size:11px;padding:3px 8px;border:1px solid var(--border);color:var(--text2);">Remove photo</button>
+            </div>
+          </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;">
           <button class="primary" id="btnAddActivity">Add activity</button>
@@ -695,11 +702,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </div>
 
     <div class="slide-progress">
+    <div class="review-entry">
+    <div class="section-title">Days recorded in this browser</div>
     <div class="card no-print" style="margin-bottom:16px;">
-      <div class="chart-title">Days recorded in this browser</div>
       <div class="chart-desc">A local cache for quick reload. Your Excel file - not this cache - is the real source of truth.</div>
       <div id="historyList" style="margin-top:10px;"></div>
       <button class="subtle" id="btnClearHistory" style="margin-top:6px;border:1px solid var(--border);color:var(--text2);">Clear all history</button>
+    </div>
     </div>
 
     <div class="card no-print" style="margin-bottom:16px;">
@@ -1130,6 +1139,20 @@ function findActivityLocation(id){
   }
   return null;
 }
+function isSameActivity(a,b){
+  if (dateKey(a.reportDate)!==dateKey(b.reportDate)) return false;
+  const aSap = (a.sapNumber||'').trim().toLowerCase(), bSap = (b.sapNumber||'').trim().toLowerCase();
+  if (aSap && bSap && aSap===bSap) return true;
+  const aAct = (a.activity||'').trim().toLowerCase(), bAct = (b.activity||'').trim().toLowerCase();
+  const aLoc = (a.location||'').trim().toLowerCase(), bLoc = (b.location||'').trim().toLowerCase();
+  return !!aAct && aAct===bAct && aLoc===bLoc;
+}
+function findPotentialDuplicate(row, excludeId){
+  const k = dateKey(row.reportDate);
+  if (!k) return null;
+  const dayRows = (state.history.days[k]||[]).map(reviveRow);
+  return dayRows.find(r => r.id!==excludeId && isSameActivity(r,row)) || null;
+}
 function addActivityRow(row){
   if (!row.id) row.id = genId();
   const k = dateKey(row.reportDate);
@@ -1524,7 +1547,13 @@ function loadHistory(){
   if (!h.emergencyMH) h.emergencyMH = {};
   return h;
 }
-function saveHistory(h){ localStorage.setItem(HIST_KEY, JSON.stringify(h)); }
+function saveHistory(h){
+  try{
+    localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  }catch(e){
+    alert('Could not save: your browser\'s local storage is full (this can happen after attaching many photos). Remove a few photos from older activities, or export/back up your Excel file, then try again.');
+  }
+}
 function serializeRow(r){
   return {...r,
     reportDate: r.reportDate? r.reportDate.toISOString() : null,
@@ -2261,12 +2290,19 @@ function renderActivityDetail(f, targetKey, targetDate){
     const actionsCell = editableTable
       ? `<td><button data-edit="${r.id}" style="padding:3px 8px;font-size:11px;">Edit</button> <button data-del="${r.id}" style="padding:3px 8px;font-size:11px;color:var(--red);">Delete</button></td>`
       : `<td></td>`;
-    return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${escapeHtml(r.activity)}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
+    const activityCell = r.photo
+      ? `${escapeHtml(r.activity)} <img src="${r.photo}" data-photo-view title="Click to view photo" style="width:26px;height:26px;object-fit:cover;border-radius:4px;vertical-align:middle;cursor:zoom-in;border:1px solid var(--border);">`
+      : escapeHtml(r.activity);
+    return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${activityCell}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
       <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}</td></tr>`;
   }).join('');
+  tbody.querySelectorAll('img[data-photo-view]').forEach(img=>{
+    img.addEventListener('click', (e)=>{ e.stopPropagation(); showPhotoLightbox(img.src); });
+  });
   tbody.querySelectorAll('tr[data-clickable]').forEach(tr=>{
     tr.addEventListener('click', (e)=>{
       if (e.target.closest('button')) return;
+      if (e.target.closest('img[data-photo-view]')) return;
       const idx = tr.getAttribute('data-idx');
       const remarksRow = tbody.querySelector(`tr[data-remarks-for="${idx}"]`);
       if (remarksRow) remarksRow.style.display = remarksRow.style.display==='none' ? '' : 'none';
@@ -2606,6 +2642,53 @@ on('btnClearHistory', 'click', ()=>{
   document.getElementById('fileStatus').textContent = 'History cleared';
 });
 
+let currentActivityPhoto = null;
+function readAndCompressImage(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(reader.error || new Error('Could not read file'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('That file does not look like a valid image'));
+      img.onload = ()=>{
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim){
+          if (width >= height){ height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function showActivityPhotoPreview(dataUrl){
+  const wrap = document.getElementById('afPhotoPreviewWrap');
+  const img = document.getElementById('afPhotoPreview');
+  if (!wrap || !img) return;
+  if (dataUrl){ img.src = dataUrl; wrap.style.display = 'block'; }
+  else { img.src = ''; wrap.style.display = 'none'; }
+}
+function showPhotoLightbox(src){
+  let overlay = document.getElementById('photoLightbox');
+  if (!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'photoLightbox';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:zoom-out;padding:20px;';
+    overlay.addEventListener('click', ()=>{ overlay.style.display = 'none'; });
+    const img = document.createElement('img');
+    img.id = 'photoLightboxImg';
+    img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+  }
+  document.getElementById('photoLightboxImg').src = src;
+  overlay.style.display = 'flex';
+}
 function readActivityForm(){
   return {
     reportDate: inputValueToDate(document.getElementById('afReportDate').value),
@@ -2627,7 +2710,8 @@ function readActivityForm(){
     actualHours: Number(document.getElementById('afActualHours').value)||0,
     status: document.getElementById('afStatus').value,
     balanceStatus: document.getElementById('afBalanceStatus').value.trim(),
-    remarks: document.getElementById('afRemarks').value.trim()
+    remarks: document.getElementById('afRemarks').value.trim(),
+    photo: currentActivityPhoto
   };
 }
 function writeActivityForm(row){
@@ -2651,6 +2735,8 @@ function writeActivityForm(row){
   document.getElementById('afStatus').value = row.status || 'Not Started';
   document.getElementById('afBalanceStatus').value = row.balanceStatus || '';
   document.getElementById('afRemarks').value = row.remarks || '';
+  currentActivityPhoto = row.photo || null;
+  showActivityPhotoPreview(currentActivityPhoto);
 }
 function clearActivityFormForNext(){
   document.getElementById('afAbcIndicator').value = '';
@@ -2669,6 +2755,8 @@ function clearActivityFormForNext(){
   document.getElementById('afStatus').value = 'Not Started';
   document.getElementById('afBalanceStatus').value = '';
   document.getElementById('afRemarks').value = '';
+  currentActivityPhoto = null;
+  showActivityPhotoPreview(null);
   document.getElementById('afActivity').focus();
 }
 function setActivityFormDefaultDate(){
@@ -2740,12 +2828,35 @@ on('btnAddActivity', 'click', ()=>{
     updateActivityRow(state.editingActivityId, row);
     cancelEditActivity();
   } else {
+    const dup = findPotentialDuplicate(row);
+    if (dup){
+      const how = (dup.sapNumber||'').trim() && (dup.sapNumber||'').trim().toLowerCase()===(row.sapNumber||'').trim().toLowerCase()
+        ? `the same work order # (${dup.sapNumber})`
+        : `the same activity and location ("${dup.activity}" at ${dup.location||'-'})`;
+      const ok = confirm(`This looks like a duplicate: an activity already exists on this date with ${how} (status: ${dup.status}).\n\nAdd it anyway as a separate entry?`);
+      if (!ok) return;
+    }
     addActivityRow(row);
     clearActivityFormForNext();
   }
   refreshAfterDataChange();
 });
 on('btnCancelEdit', 'click', cancelEditActivity);
+on('afPhoto', 'change', async (e)=>{
+  const file = e.target.files[0];
+  if (!file) return;
+  try{
+    currentActivityPhoto = await readAndCompressImage(file, 900, 0.7);
+    showActivityPhotoPreview(currentActivityPhoto);
+  }catch(err){
+    alert('Could not read that image: ' + err.message);
+  }
+  e.target.value = '';
+});
+on('afPhotoRemove', 'click', ()=>{
+  currentActivityPhoto = null;
+  showActivityPhotoPreview(null);
+});
 on('btnStartFresh', 'click', ()=>{
   document.getElementById('emptyState').style.display='none';
   document.getElementById('dashboardBody').style.display='block';
@@ -2756,7 +2867,8 @@ on('btnStartFresh', 'click', ()=>{
 on('btnBulkImport', 'click', ()=>{
   const text = document.getElementById('bulkPasteArea').value;
   const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  let added = 0, skipped = 0;
+  const parsedRows = [];
+  let skipped = 0;
   lines.forEach(line=>{
     const cols = line.split('\t');
     const reportDate = parseLenientDate(cols[0]);
@@ -2767,7 +2879,7 @@ on('btnBulkImport', 'click', ()=>{
       : /^cm$/i.test(disciplineRaw) ? 'CM'
       : /^(ec|emergency( ?call ?out)?)$/i.test(disciplineRaw) ? 'EmergencyCallout'
       : (disciplineRaw || 'General');
-    const row = {
+    parsedRows.push({
       reportDate,
       scope: (cols[1]||'').trim() || null,
       discipline,
@@ -2787,11 +2899,32 @@ on('btnBulkImport', 'click', ()=>{
       remarks: (cols[16]||'').trim(),
       abcIndicator: normalizeAbc(cols[17]),
       priority: (cols[18]||'').trim()
-    };
+    });
+  });
+
+  const seenInBatch = [];
+  const dupFlags = parsedRows.map(row=>{
+    const isDup = !!findPotentialDuplicate(row) || seenInBatch.some(r=>isSameActivity(r,row));
+    seenInBatch.push(row);
+    return isDup;
+  });
+  const dupCount = dupFlags.filter(Boolean).length;
+  let importDuplicates = true;
+  if (dupCount){
+    importDuplicates = confirm(`${dupCount} of ${parsedRows.length} row(s) look like duplicates of an activity already on the same date (same work order #, or same activity + location).\n\nOK = import them anyway. Cancel = skip just the duplicate rows and still import the rest.`);
+  }
+
+  let added = 0, skippedDup = 0;
+  parsedRows.forEach((row, i)=>{
+    if (dupFlags[i] && !importDuplicates){ skippedDup++; return; }
     addActivityRow(row);
     added++;
   });
-  document.getElementById('bulkImportStatus').textContent = `Imported ${added} row(s)${skipped? `, skipped ${skipped} (missing date or activity)` : ''}.`;
+
+  const statusParts = [`Imported ${added} row(s)`];
+  if (skipped) statusParts.push(`skipped ${skipped} (missing date or activity)`);
+  if (skippedDup) statusParts.push(`skipped ${skippedDup} as duplicates`);
+  document.getElementById('bulkImportStatus').textContent = statusParts.join(', ') + '.';
   if (added){ document.getElementById('bulkPasteArea').value=''; refreshAfterDataChange(); }
 });
 
@@ -3232,7 +3365,7 @@ state.isSnapshot = !!window.__EMBEDDED_HISTORY__;
     document.getElementById('btnLoad').style.display='none';
     document.getElementById('btnRefresh').style.display='none';
     document.getElementById('btnExportSnapshot').style.display='none';
-    const histCard = document.getElementById('historyList').closest('.card');
+    const histCard = document.getElementById('historyList').closest('.review-entry') || document.getElementById('historyList').closest('.card');
     if (histCard) histCard.style.display='none';
     const backupsCard = document.getElementById('backupsList').closest('.card');
     if (backupsCard) backupsCard.style.display='none';
