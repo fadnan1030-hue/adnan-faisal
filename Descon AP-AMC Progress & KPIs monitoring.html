@@ -266,6 +266,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <div class="topbar-row2">
   <div class="toolbar">
     <span class="status" id="fileStatus">No file loaded</span>
+    <span class="status" id="cloudSyncStatus" style="opacity:.85;"></span>
     <button class="primary" id="btnLoad">Load Excel file</button>
     <button class="subtle" id="btnRefresh" disabled style="border:1px solid rgba(255,255,255,.25);">Refresh now</button>
     <button class="subtle" id="btnPrint" style="border:1px solid rgba(255,255,255,.25);">Print / Save as PDF</button>
@@ -383,12 +384,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           </div>
           <div class="field"><label>Balance status (optional)</label><input type="text" id="afBalanceStatus"></div>
           <div class="field" style="grid-column:1/3;"><label>Remarks</label><textarea id="afRemarks" rows="2" style="font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);"></textarea></div>
-          <div class="field" style="grid-column:1/3;"><label>Photo (optional, e.g. strainer cleaning before/after)</label>
-            <input type="file" id="afPhoto" accept="image/*">
-            <div id="afPhotoPreviewWrap" style="display:none;margin-top:8px;">
-              <img id="afPhotoPreview" style="max-width:160px;max-height:120px;border-radius:8px;border:1px solid var(--border);display:block;object-fit:cover;">
-              <button type="button" id="afPhotoRemove" class="subtle" style="margin-top:6px;font-size:11px;padding:3px 8px;border:1px solid var(--border);color:var(--text2);">Remove photo</button>
-            </div>
+          <div class="field" style="grid-column:1/3;"><label>Photos (optional, up to 6 - e.g. strainer cleaning before/after)</label>
+            <input type="file" id="afPhoto" accept="image/*" multiple>
+            <div id="afPhotoPreviewWrap" style="display:none;margin-top:8px;gap:8px;flex-wrap:wrap;"></div>
           </div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;">
@@ -720,6 +718,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 Chart.register(ChartDataLabels);
 Chart.defaults.set('plugins.datalabels', { display:false });
@@ -928,6 +929,124 @@ function closeThemeMenu(){
 })();
 
 let state = { rows: [], history: { days:{}, lti:{}, barChart:{}, kpi:{}, emergencyMH:{} }, fileHandle: null, fileName: '', lastModified: null, editingActivityId: null, isUnlocked: true };
+
+// --- Cloud backup (Firebase Firestore) --------------------------------
+// Every activity added/edited here is also mirrored to a Firestore
+// database, so it survives even if this browser's local storage is ever
+// lost, cleared, or this PC is replaced. It's a backup layer only: the
+// local cache above stays the fast/primary copy for day-to-day use, and
+// on load, any activity that exists in the cloud but not locally (e.g. a
+// fresh browser, or data lost from this PC) gets pulled back in
+// automatically. Nothing is ever deleted from the cloud copy except when
+// you explicitly delete that activity here.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBhIHh0eAQH08_qM_XVDtHpyxs5TDqaCaU",
+  authDomain: "adnanfais.firebaseapp.com",
+  projectId: "adnanfais",
+  storageBucket: "adnanfais.firebasestorage.app",
+  messagingSenderId: "418398562984",
+  appId: "1:418398562984:web:77ebe760d2e77a2f07309d"
+};
+const CLOUD_COLLECTION = 'activities';
+let cloudDb = null;
+let cloudReady = false;
+function updateCloudStatus(text){
+  const el = document.getElementById('cloudSyncStatus');
+  if (el) el.textContent = text;
+}
+function initCloudSync(){
+  if (typeof firebase === 'undefined'){ updateCloudStatus(''); return; }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    cloudDb = firebase.firestore();
+    updateCloudStatus('Connecting to cloud backup...');
+    firebase.auth().signInAnonymously().then(()=>{
+      cloudReady = true;
+      pullCloudActivities();
+    }).catch(e=>{ updateCloudStatus('Cloud backup unavailable (sign-in failed).'); console.warn('Cloud sign-in failed:', e.message); });
+  }catch(e){ updateCloudStatus('Cloud backup unavailable.'); console.warn('Cloud init failed:', e.message); }
+}
+function cloudRowPayload(row){
+  const s = serializeRow(row);
+  delete s.sheetRow; // meaningless outside the browser that loaded that Excel file
+  return s;
+}
+function saveActivityToCloud(row){
+  if (!cloudReady || !cloudDb || !row.id) return;
+  cloudDb.collection(CLOUD_COLLECTION).doc(row.id).set(cloudRowPayload(row)).catch(e=>{
+    console.warn('Cloud save failed for', row.id, e.message);
+  });
+}
+function deleteActivityFromCloud(id){
+  if (!cloudReady || !cloudDb || !id) return;
+  cloudDb.collection(CLOUD_COLLECTION).doc(id).delete().catch(e=>{
+    console.warn('Cloud delete failed for', id, e.message);
+  });
+}
+function pullCloudActivities(){
+  if (!cloudDb) return;
+  cloudDb.collection(CLOUD_COLLECTION).get().then(snapshot=>{
+    let added = 0;
+    const localIds = new Set();
+    Object.values(state.history.days).forEach(dayRows=>{
+      (dayRows||[]).forEach(r=> localIds.add(r.id));
+    });
+    snapshot.forEach(doc=>{
+      if (localIds.has(doc.id)) return;
+      const row = reviveRow(Object.assign({}, doc.data(), { id: doc.id }));
+      if (!row.reportDate) return;
+      const k = dateKey(row.reportDate);
+      if (!state.history.days[k]) state.history.days[k] = [];
+      state.history.days[k].push(serializeRow(row));
+      added++;
+    });
+    if (added){
+      saveHistory(state.history);
+      rebuildRowsFromHistory();
+      if (state.rows.length){
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('dashboardBody').style.display = 'block';
+        fillFilterOptions();
+        populateDatalists();
+        renderHistoryPanel();
+        render();
+      }
+    }
+    pushAllLocalActivitiesToCloud();
+  }).catch(e=>{
+    updateCloudStatus('Cloud backup unavailable.');
+    console.warn('Cloud pull failed:', e.message);
+  });
+}
+function pushAllLocalActivitiesToCloud(){
+  if (!cloudReady || !cloudDb) return;
+  const allRows = [];
+  Object.values(state.history.days).forEach(dayRows=>{
+    (dayRows||[]).forEach(r=>{
+      const row = reviveRow(r);
+      if (row.id) allRows.push(row);
+    });
+  });
+  if (!allRows.length){ updateCloudStatus('Cloud backup connected.'); return; }
+  const CHUNK = 300;
+  let i = 0;
+  function nextChunk(){
+    if (i >= allRows.length){
+      updateCloudStatus(`Cloud backup: ${allRows.length} activit${allRows.length===1?'y':'ies'} backed up.`);
+      return;
+    }
+    const batch = cloudDb.batch();
+    allRows.slice(i, i + CHUNK).forEach(row=>{
+      batch.set(cloudDb.collection(CLOUD_COLLECTION).doc(row.id), cloudRowPayload(row));
+    });
+    batch.commit().then(()=>{ i += CHUNK; nextChunk(); }).catch(e=>{
+      console.warn('Cloud backfill failed:', e.message);
+      updateCloudStatus('Cloud backup: some activities failed to sync.');
+    });
+  }
+  updateCloudStatus(`Cloud backup: syncing ${allRows.length} activit${allRows.length===1?'y':'ies'}...`);
+  nextChunk();
+}
 let EMBEDDED_PASSWORD_HASH = '';
 const PASSWORD_HASH_KEY = 'apstt1_password_hash';
 const UNLOCK_TOKEN_KEY = 'apstt1_unlock_token';
@@ -1161,6 +1280,7 @@ function addActivityRow(row){
   saveHistory(state.history);
   rebuildRowsFromHistory();
   syncActivityToExcel(row);
+  saveActivityToCloud(row);
 }
 function updateActivityRow(id, row){
   const loc = findActivityLocation(id);
@@ -1176,6 +1296,7 @@ function updateActivityRow(id, row){
   saveHistory(state.history);
   rebuildRowsFromHistory();
   syncActivityToExcel(row);
+  saveActivityToCloud(row);
 }
 function deleteActivityById(id){
   const loc = findActivityLocation(id);
@@ -1185,6 +1306,7 @@ function deleteActivityById(id){
   if (!state.history.days[loc.dayKey].length) delete state.history.days[loc.dayKey];
   saveHistory(state.history);
   rebuildRowsFromHistory();
+  deleteActivityFromCloud(id);
   if (state.rows.length){
     fillFilterOptions();
     renderHistoryPanel();
@@ -2290,19 +2412,27 @@ function renderActivityDetail(f, targetKey, targetDate){
     const actionsCell = editableTable
       ? `<td><button data-edit="${r.id}" style="padding:3px 8px;font-size:11px;">Edit</button> <button data-del="${r.id}" style="padding:3px 8px;font-size:11px;color:var(--red);">Delete</button></td>`
       : `<td></td>`;
-    const activityCell = r.photo
-      ? `${escapeHtml(r.activity)} <img src="${r.photo}" data-photo-view title="Click to view photo" style="width:26px;height:26px;object-fit:cover;border-radius:4px;vertical-align:middle;cursor:zoom-in;border:1px solid var(--border);">`
+    const photos = getRowPhotos(r);
+    const countBadge = photos.length > 1
+      ? `<span style="position:absolute;bottom:-3px;right:-3px;background:var(--blue);color:#fff;font-size:9px;line-height:1;padding:1px 3px;border-radius:6px;">${photos.length}</span>`
+      : '';
+    const activityCell = photos.length
+      ? `${escapeHtml(r.activity)} <span data-photo-view data-idx="${i}" style="position:relative;display:inline-block;vertical-align:middle;margin-left:2px;cursor:zoom-in;" title="Click to view photo${photos.length>1?'s':''}"><img src="${photos[0]}" style="width:26px;height:26px;object-fit:cover;border-radius:4px;border:1px solid var(--border);display:block;">${countBadge}</span>`
       : escapeHtml(r.activity);
     return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${activityCell}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
       <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}</td></tr>`;
   }).join('');
-  tbody.querySelectorAll('img[data-photo-view]').forEach(img=>{
-    img.addEventListener('click', (e)=>{ e.stopPropagation(); showPhotoLightbox(img.src); });
+  tbody.querySelectorAll('[data-photo-view]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const row = rows[Number(el.getAttribute('data-idx'))];
+      showPhotoLightbox(getRowPhotos(row), 0);
+    });
   });
   tbody.querySelectorAll('tr[data-clickable]').forEach(tr=>{
     tr.addEventListener('click', (e)=>{
       if (e.target.closest('button')) return;
-      if (e.target.closest('img[data-photo-view]')) return;
+      if (e.target.closest('[data-photo-view]')) return;
       const idx = tr.getAttribute('data-idx');
       const remarksRow = tbody.querySelector(`tr[data-remarks-for="${idx}"]`);
       if (remarksRow) remarksRow.style.display = remarksRow.style.display==='none' ? '' : 'none';
@@ -2394,7 +2524,19 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
   const fileMaxKey = Array.from(byDate.keys()).sort().pop();
 
   byDate.forEach((groupRows, k)=>{
-    state.history.days[k] = groupRows.map(serializeRow);
+    // Photos are attached in the dashboard only (Excel has no photo column and
+    // write-back doesn't include them), so re-parsing the sheet on every load/
+    // refresh would otherwise silently drop them. Carry photos forward from the
+    // previous copy of the same activity (matched the same way duplicates are
+    // detected) before replacing this day's rows with the freshly parsed ones.
+    const previousRows = (state.history.days[k]||[]).map(reviveRow);
+    const mergedRows = groupRows.map(newRow=>{
+      const match = previousRows.find(pr=>isSameActivity(pr, newRow));
+      const photos = match ? getRowPhotos(match) : [];
+      if (photos.length) newRow.photos = photos;
+      return newRow;
+    });
+    state.history.days[k] = mergedRows.map(serializeRow);
     if (k === fileMaxKey) {
       state.history.lti[k] = hse ? hse.ltiRecordedToday : (state.history.lti[k] || false);
       if (barChart) state.history.barChart[k] = barChart;
@@ -2642,7 +2784,13 @@ on('btnClearHistory', 'click', ()=>{
   document.getElementById('fileStatus').textContent = 'History cleared';
 });
 
-let currentActivityPhoto = null;
+let currentActivityPhotos = [];
+const MAX_ACTIVITY_PHOTOS = 6;
+function getRowPhotos(row){
+  if (Array.isArray(row.photos)) return row.photos.filter(Boolean);
+  if (row.photo) return [row.photo];
+  return [];
+}
 function readAndCompressImage(file, maxDim, quality){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
@@ -2666,27 +2814,78 @@ function readAndCompressImage(file, maxDim, quality){
     reader.readAsDataURL(file);
   });
 }
-function showActivityPhotoPreview(dataUrl){
+function renderActivityPhotoPreviews(){
   const wrap = document.getElementById('afPhotoPreviewWrap');
-  const img = document.getElementById('afPhotoPreview');
-  if (!wrap || !img) return;
-  if (dataUrl){ img.src = dataUrl; wrap.style.display = 'block'; }
-  else { img.src = ''; wrap.style.display = 'none'; }
+  if (!wrap) return;
+  if (!currentActivityPhotos.length){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = currentActivityPhotos.map((src,i)=>`
+    <div style="position:relative;">
+      <img src="${src}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block;">
+      <button type="button" data-remove-photo-idx="${i}" title="Remove this photo" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;padding:0;">&times;</button>
+    </div>`).join('');
+  wrap.querySelectorAll('[data-remove-photo-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentActivityPhotos.splice(Number(btn.getAttribute('data-remove-photo-idx')), 1);
+      renderActivityPhotoPreviews();
+    });
+  });
 }
-function showPhotoLightbox(src){
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+function updateLightbox(){
+  document.getElementById('photoLightboxImg').src = lightboxPhotos[lightboxIndex];
+  const multi = lightboxPhotos.length > 1;
+  const counter = document.getElementById('photoLightboxCounter');
+  counter.style.display = multi ? 'block' : 'none';
+  counter.textContent = `${lightboxIndex+1} / ${lightboxPhotos.length}`;
+  document.getElementById('photoLightboxPrev').style.display = multi ? 'flex' : 'none';
+  document.getElementById('photoLightboxNext').style.display = multi ? 'flex' : 'none';
+}
+function showPhotoLightbox(photos, startIndex){
+  lightboxPhotos = photos;
+  lightboxIndex = startIndex || 0;
   let overlay = document.getElementById('photoLightbox');
   if (!overlay){
     overlay = document.createElement('div');
     overlay.id = 'photoLightbox';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;cursor:zoom-out;padding:20px;';
-    overlay.addEventListener('click', ()=>{ overlay.style.display = 'none'; });
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+    overlay.addEventListener('click', (e)=>{ if (e.target===overlay) overlay.style.display = 'none'; });
+
     const img = document.createElement('img');
     img.id = 'photoLightboxImg';
-    img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+    img.style.cssText = 'max-width:80vw;max-height:85vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+
+    const counter = document.createElement('div');
+    counter.id = 'photoLightboxCounter';
+    counter.style.cssText = 'position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.5);padding:3px 10px;border-radius:12px;';
+
+    const navBtnStyle = 'position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:22px;cursor:pointer;align-items:center;justify-content:center;';
+    const prevBtn = document.createElement('button');
+    prevBtn.id = 'photoLightboxPrev';
+    prevBtn.textContent = '‹';
+    prevBtn.style.cssText = navBtnStyle + 'left:16px;';
+    prevBtn.addEventListener('click', (e)=>{ e.stopPropagation(); lightboxIndex = (lightboxIndex - 1 + lightboxPhotos.length) % lightboxPhotos.length; updateLightbox(); });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.id = 'photoLightboxNext';
+    nextBtn.textContent = '›';
+    nextBtn.style.cssText = navBtnStyle + 'right:16px;';
+    nextBtn.addEventListener('click', (e)=>{ e.stopPropagation(); lightboxIndex = (lightboxIndex + 1) % lightboxPhotos.length; updateLightbox(); });
+
+    overlay.appendChild(prevBtn);
     overlay.appendChild(img);
+    overlay.appendChild(nextBtn);
+    overlay.appendChild(counter);
+    document.addEventListener('keydown', (e)=>{
+      if (overlay.style.display!=='flex') return;
+      if (e.key==='Escape') overlay.style.display='none';
+      else if (e.key==='ArrowLeft') prevBtn.click();
+      else if (e.key==='ArrowRight') nextBtn.click();
+    });
     document.body.appendChild(overlay);
   }
-  document.getElementById('photoLightboxImg').src = src;
+  updateLightbox();
   overlay.style.display = 'flex';
 }
 function readActivityForm(){
@@ -2711,7 +2910,7 @@ function readActivityForm(){
     status: document.getElementById('afStatus').value,
     balanceStatus: document.getElementById('afBalanceStatus').value.trim(),
     remarks: document.getElementById('afRemarks').value.trim(),
-    photo: currentActivityPhoto
+    photos: currentActivityPhotos.slice()
   };
 }
 function writeActivityForm(row){
@@ -2735,8 +2934,8 @@ function writeActivityForm(row){
   document.getElementById('afStatus').value = row.status || 'Not Started';
   document.getElementById('afBalanceStatus').value = row.balanceStatus || '';
   document.getElementById('afRemarks').value = row.remarks || '';
-  currentActivityPhoto = row.photo || null;
-  showActivityPhotoPreview(currentActivityPhoto);
+  currentActivityPhotos = getRowPhotos(row);
+  renderActivityPhotoPreviews();
 }
 function clearActivityFormForNext(){
   document.getElementById('afAbcIndicator').value = '';
@@ -2755,8 +2954,8 @@ function clearActivityFormForNext(){
   document.getElementById('afStatus').value = 'Not Started';
   document.getElementById('afBalanceStatus').value = '';
   document.getElementById('afRemarks').value = '';
-  currentActivityPhoto = null;
-  showActivityPhotoPreview(null);
+  currentActivityPhotos = [];
+  renderActivityPhotoPreviews();
   document.getElementById('afActivity').focus();
 }
 function setActivityFormDefaultDate(){
@@ -2843,19 +3042,27 @@ on('btnAddActivity', 'click', ()=>{
 });
 on('btnCancelEdit', 'click', cancelEditActivity);
 on('afPhoto', 'change', async (e)=>{
-  const file = e.target.files[0];
-  if (!file) return;
-  try{
-    currentActivityPhoto = await readAndCompressImage(file, 900, 0.7);
-    showActivityPhotoPreview(currentActivityPhoto);
-  }catch(err){
-    alert('Could not read that image: ' + err.message);
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const room = MAX_ACTIVITY_PHOTOS - currentActivityPhotos.length;
+  if (room <= 0){
+    alert(`You can attach up to ${MAX_ACTIVITY_PHOTOS} photos per activity. Remove one first.`);
+    e.target.value = '';
+    return;
   }
+  const toAdd = files.slice(0, room);
+  if (files.length > toAdd.length){
+    alert(`Only added ${toAdd.length} of ${files.length} photo(s) - the limit is ${MAX_ACTIVITY_PHOTOS} per activity.`);
+  }
+  for (const file of toAdd){
+    try{
+      currentActivityPhotos.push(await readAndCompressImage(file, 900, 0.7));
+    }catch(err){
+      alert('Could not read one of those images: ' + err.message);
+    }
+  }
+  renderActivityPhotoPreviews();
   e.target.value = '';
-});
-on('afPhotoRemove', 'click', ()=>{
-  currentActivityPhoto = null;
-  showActivityPhotoPreview(null);
 });
 on('btnStartFresh', 'click', ()=>{
   document.getElementById('emptyState').style.display='none';
@@ -3387,6 +3594,7 @@ state.isSnapshot = !!window.__EMBEDDED_HISTORY__;
   if (!state.history.barChart) state.history.barChart = {};
   if (!state.history.kpi) state.history.kpi = {};
   rebuildRowsFromHistory();
+  initCloudSync();
   renderBackupsPanel();
   setActivityFormDefaultDate();
   state.isUnlocked = computeIsUnlocked();
