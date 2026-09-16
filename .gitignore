@@ -42,6 +42,7 @@ next-env.d.ts
 
 /src/generated/prisma
 
-# local file storage (photos/documents) for dev
-/storage/uploads
+# local file storage (photos/documents) - served from /public/uploads at
+# runtime; swap for S3-compatible object storage in production (see README)
+/public/uploads
 
