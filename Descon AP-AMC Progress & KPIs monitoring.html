@@ -1209,6 +1209,17 @@ function dateKey(d){
 }
 function keyToDate(k){ const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d); }
 function genId(){ return 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+// Deterministic id for activities parsed from Excel, so the same real-world
+// row gets the same id every time the file is loaded/refreshed - otherwise a
+// fresh random id per load would make every reload look like brand-new
+// activities to the cloud sync, piling up duplicate cloud records forever.
+function computeStableRowId(sapNumber, reportDate, activity, location){
+  const dk = reportDate ? dateKey(reportDate) : '';
+  const key = [(sapNumber||'').trim().toLowerCase(), dk, (activity||'').trim().toLowerCase(), (location||'').trim().toLowerCase()].join('|');
+  let h1 = 0x811c9dc5;
+  for (let i=0; i<key.length; i++){ h1 ^= key.charCodeAt(i); h1 = Math.imul(h1, 0x01000193); }
+  return 'xl' + (h1>>>0).toString(36);
+}
 function parseLenientDate(str){
   if (str==null) return null;
   str = String(str).trim();
@@ -1394,20 +1405,24 @@ function parseDetailSheet(ws){
     else if (actualStart) status = 'In Progress';
     else status = 'Not Started';
 
+    const reportDateVal = planStart || actualStart || null;
+    const activityVal = String(activity).trim();
+    const locationVal = col.location>=0 && r[col.location]!=null ? String(r[col.location]).trim() : '';
+    const sapNumberVal = col.sapNumber>=0 && r[col.sapNumber]!=null ? String(r[col.sapNumber]).trim() : '';
     rows.push({
-      id: genId(),
-      reportDate: planStart || actualStart || null,
+      id: computeStableRowId(sapNumberVal, reportDateVal, activityVal, locationVal),
+      reportDate: reportDateVal,
       scope: col.scope>=0 ? (r[col.scope]==null? null: String(r[col.scope]).trim()) : null,
       discipline,
-      activity: String(activity).trim(),
-      location: col.location>=0 && r[col.location]!=null ? String(r[col.location]).trim() : '',
+      activity: activityVal,
+      location: locationVal,
       planStart, planFinish, actualStart, actualFinish,
       plannedHours: col.plannedHours>=0 ? (Number(r[col.plannedHours])||0) : 0,
       actualHours: col.actualHours>=0 ? (Number(r[col.actualHours])||0) : 0,
       status,
       week: col.week>=0 && r[col.week]!=null ? String(r[col.week]).trim() : null,
       sortField: col.sortField>=0 && r[col.sortField]!=null ? String(r[col.sortField]).trim() : '',
-      sapNumber: col.sapNumber>=0 && r[col.sapNumber]!=null ? String(r[col.sapNumber]).trim() : '',
+      sapNumber: sapNumberVal,
       referenceNumber: '',
       balanceStatus,
       remarks: col.remarks>=0 && r[col.remarks]!=null ? String(r[col.remarks]).trim() : '',
