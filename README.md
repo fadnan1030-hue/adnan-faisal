@@ -26,7 +26,47 @@ Mutations are implemented as **Next.js Server Actions** invoked from plain
 without client-side JavaScript (progressive enhancement) and there's very
 little bespoke client state to maintain.
 
-## Getting started (local development)
+## Easiest way to run this on your own computer (no technical background needed)
+
+This skips installing PostgreSQL yourself by using a free hosted database
+instead — you just copy one link into a file.
+
+1. **Install Node.js.** Go to <https://nodejs.org>, download the "LTS"
+   version for your operating system, and run the installer (click Next /
+   Continue through the defaults).
+
+2. **Get a free database connection string.** Go to <https://neon.tech>,
+   sign up for a free account, and create a new project. On the project
+   dashboard, find the box labeled "Connection string" and copy it (it
+   starts with `postgresql://`).
+
+3. **Open a terminal in this project folder.**
+   - Windows: open the folder, then right-click inside it and choose
+     "Open in Terminal" (or open Command Prompt and `cd` into the folder).
+   - Mac: open the folder in Finder, right-click, "New Terminal at Folder".
+
+4. **Create your `.env` file.** Copy `.env.example` to a new file named
+   `.env` in the same folder, then open `.env` in any text editor and:
+   - Replace the `DATABASE_URL` line with the connection string you copied
+     from Neon.
+   - Replace `AUTH_SECRET` with any random sentence of your own (e.g.
+     `this-is-my-secret-passphrase-12345`) — it just needs to be unique to you.
+
+5. **Run one command:**
+
+   ```bash
+   npm install && npm run quickstart
+   ```
+
+   This installs everything, sets up the database tables, loads demo
+   data, and starts the app — in that order.
+
+6. **Open your browser** to <http://localhost:3000> and sign in with one
+   of the demo accounts below. To stop the app later, go back to the
+   terminal window and press `Ctrl+C`; to start it again next time, open
+   a terminal in this folder and run `npm run dev`.
+
+## Getting started (local development, manual database setup)
 
 ```bash
 # 1. Start PostgreSQL and create a database (adjust to your setup)
