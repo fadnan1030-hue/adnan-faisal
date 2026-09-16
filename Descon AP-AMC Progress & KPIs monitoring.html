@@ -128,7 +128,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .lock-modal-icon{width:56px;height:56px;border-radius:50%;background:linear-gradient(180deg,var(--blue),var(--navy));color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
   .lock-modal h2{font-size:18px;margin:0 0 6px;}
   .lock-modal p{font-size:13px;color:var(--text2);margin:0 0 14px;line-height:1.5;}
-  .lock-modal input[type="password"]{width:100%;font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:10px;text-align:left;}
+  .lock-modal input[type="password"], .lock-modal input[type="email"]{width:100%;font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:10px;text-align:left;}
   .lock-modal .field{text-align:left;margin-bottom:10px;}
   .lock-modal .field label{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:4px;}
   .lock-modal button.primary{width:100%;padding:11px;font-size:14px;border-radius:9px;}
@@ -278,6 +278,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="subtle" id="btnTheme" style="border:1px solid rgba(255,255,255,.25);" title="Change theme">&#127912; <span id="btnThemeLabel">Theme</span> &#9662;</button>
       <div class="theme-menu" id="themeMenu"></div>
     </div>
+    <span id="signedInAs" style="display:none;align-items:center;gap:6px;font-size:12.5px;">
+      &#128100; <span id="signedInAsEmail"></span>
+      <button class="subtle" id="btnCloudSignOut" style="border:1px solid rgba(255,255,255,.25);padding:4px 8px;font-size:11.5px;">Sign out</button>
+    </span>
   </div>
 </div>
 <div class="tabbar" id="tabBar">
@@ -300,6 +304,23 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <h2 id="lockModalTitle">Editor Access</h2>
   <div id="lockModalBody"></div>
   <button id="btnCloseLockModal" class="subtle lock-modal-close" style="border:1px solid var(--border);">Close</button>
+</div>
+
+<div id="cloudLoginBackdrop" class="lock-modal-backdrop" style="background:var(--bg);"></div>
+<div id="cloudLoginModal" class="lock-modal" role="dialog" aria-modal="true">
+  <div class="lock-modal-icon">&#128100;</div>
+  <h2>Sign in required</h2>
+  <p>Sign in with the account your admin set up for you to access this dashboard. Every activity you add or change will be recorded under your name.</p>
+  <div class="field">
+    <label>Email</label>
+    <input type="email" id="cloudLoginEmail" autocomplete="username">
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="cloudLoginPassword" autocomplete="current-password">
+  </div>
+  <div class="lock-modal-error" id="cloudLoginError"></div>
+  <button class="primary" id="btnCloudLogin">Sign in</button>
 </div>
 
 <div class="wrap">
@@ -708,13 +729,6 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="subtle" id="btnClearHistory" style="margin-top:6px;border:1px solid var(--border);color:var(--text2);">Clear all history</button>
     </div>
     </div>
-
-    <div class="card no-print" style="margin-bottom:16px;">
-      <div class="chart-title">File backups (in this browser)</div>
-      <div class="chart-desc">Every time you load or refresh your Excel file here, a full copy of it is kept in this browser (up to 30 versions). If something ever gets deleted from your live file, download an earlier version below and restore from it.</div>
-      <div id="backupsList" style="margin-top:10px;"></div>
-    </div>
-    </div>
   </div>
 </div>
 
@@ -950,22 +964,81 @@ const FIREBASE_CONFIG = {
 const CLOUD_COLLECTION = 'activities';
 let cloudDb = null;
 let cloudReady = false;
+let currentCloudUser = null;
 function updateCloudStatus(text){
   const el = document.getElementById('cloudSyncStatus');
   if (el) el.textContent = text;
+}
+function showCloudLogin(show){
+  const backdrop = document.getElementById('cloudLoginBackdrop');
+  const modal = document.getElementById('cloudLoginModal');
+  if (backdrop) backdrop.classList.toggle('open', show);
+  if (modal) modal.classList.toggle('open', show);
+}
+function updateSignedInIndicator(user){
+  const wrap = document.getElementById('signedInAs');
+  const emailEl = document.getElementById('signedInAsEmail');
+  if (!wrap) return;
+  if (user){
+    wrap.style.display = 'inline-flex';
+    if (emailEl) emailEl.textContent = user.email;
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+function humanizeAuthError(code){
+  switch(code){
+    case 'auth/invalid-email': return 'That email address looks invalid.';
+    case 'auth/user-not-found':
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password': return 'Incorrect email or password.';
+    case 'auth/too-many-requests': return 'Too many attempts - wait a bit and try again.';
+    default: return null;
+  }
+}
+function stampAuthor(row){
+  if (currentCloudUser && currentCloudUser.email){
+    if (!row.createdBy) row.createdBy = currentCloudUser.email;
+    row.updatedBy = currentCloudUser.email;
+    row.updatedAt = new Date().toISOString();
+  }
+  return row;
 }
 function initCloudSync(){
   if (typeof firebase === 'undefined'){ updateCloudStatus(''); return; }
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     cloudDb = firebase.firestore();
-    updateCloudStatus('Connecting to cloud backup...');
-    firebase.auth().signInAnonymously().then(()=>{
-      cloudReady = true;
-      pullCloudActivities();
-    }).catch(e=>{ updateCloudStatus('Cloud backup unavailable (sign-in failed).'); console.warn('Cloud sign-in failed:', e.message); });
+    firebase.auth().onAuthStateChanged(user=>{
+      if (user){
+        currentCloudUser = user;
+        cloudReady = true;
+        showCloudLogin(false);
+        updateSignedInIndicator(user);
+        updateCloudStatus('Connecting to cloud backup...');
+        pullCloudActivities();
+      } else {
+        currentCloudUser = null;
+        cloudReady = false;
+        updateSignedInIndicator(null);
+        updateCloudStatus('');
+        showCloudLogin(true);
+      }
+    });
   }catch(e){ updateCloudStatus('Cloud backup unavailable.'); console.warn('Cloud init failed:', e.message); }
 }
+on('btnCloudLogin', 'click', ()=>{
+  const email = document.getElementById('cloudLoginEmail').value.trim();
+  const password = document.getElementById('cloudLoginPassword').value;
+  const errEl = document.getElementById('cloudLoginError');
+  errEl.textContent = '';
+  if (!email || !password){ errEl.textContent = 'Enter both email and password.'; return; }
+  firebase.auth().signInWithEmailAndPassword(email, password).catch(e=>{
+    errEl.textContent = humanizeAuthError(e.code) || e.message;
+  });
+});
+on('cloudLoginPassword', 'keydown', (e)=>{ if (e.key==='Enter') document.getElementById('btnCloudLogin').click(); });
+on('btnCloudSignOut', 'click', ()=>{ firebase.auth().signOut(); });
 function cloudRowPayload(row){
   const s = serializeRow(row);
   delete s.sheetRow; // meaningless outside the browser that loaded that Excel file
@@ -1098,14 +1171,13 @@ function applyLockState(){
 let charts = {};
 let pollTimer = null;
 
-const DB_NAME = 'apstt1-dashboard'; const STORE = 'handles'; const BACKUP_STORE = 'backups'; const MAX_BACKUPS = 30;
+const DB_NAME = 'apstt1-dashboard'; const STORE = 'handles';
 function idbOpen(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = (e) => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
-      if (!db.objectStoreNames.contains(BACKUP_STORE)) db.createObjectStore(BACKUP_STORE, { keyPath:'id', autoIncrement:true });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -1122,87 +1194,6 @@ async function idbGet(key){
     const tx = db.transaction(STORE,'readonly'); const r = tx.objectStore(STORE).get(key);
     r.onsuccess = ()=>res(r.result); r.onerror = ()=>res(null);
   });}catch(e){ return null; }
-}
-
-async function addBackup(fileName, arrayBuffer){
-  try{
-    const db = await idbOpen();
-    await new Promise((res,rej)=>{
-      const tx = db.transaction(BACKUP_STORE,'readwrite');
-      tx.objectStore(BACKUP_STORE).add({ fileName, size: arrayBuffer.byteLength, savedAt: Date.now(), data: arrayBuffer });
-      tx.oncomplete = ()=>res(); tx.onerror = ()=>rej(tx.error);
-    });
-    await pruneBackups();
-  }catch(e){}
-}
-async function listBackups(){
-  try{
-    const db = await idbOpen();
-    return await new Promise((res)=>{
-      const tx = db.transaction(BACKUP_STORE,'readonly');
-      const r = tx.objectStore(BACKUP_STORE).getAll();
-      r.onsuccess = ()=> res((r.result||[]).sort((a,b)=>b.savedAt-a.savedAt));
-      r.onerror = ()=> res([]);
-    });
-  }catch(e){ return []; }
-}
-async function pruneBackups(){
-  try{
-    const all = await listBackups();
-    if (all.length <= MAX_BACKUPS) return;
-    const toDelete = all.slice(MAX_BACKUPS);
-    const db = await idbOpen();
-    const tx = db.transaction(BACKUP_STORE,'readwrite');
-    toDelete.forEach(b=> tx.objectStore(BACKUP_STORE).delete(b.id));
-  }catch(e){}
-}
-async function deleteBackup(id){
-  try{
-    const db = await idbOpen();
-    await new Promise((res,rej)=>{
-      const tx = db.transaction(BACKUP_STORE,'readwrite');
-      tx.objectStore(BACKUP_STORE).delete(id);
-      tx.oncomplete = ()=>res(); tx.onerror = ()=>rej(tx.error);
-    });
-  }catch(e){}
-}
-function downloadBackup(b){
-  const blob = new Blob([b.data], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const stamp = new Date(b.savedAt).toISOString().slice(0,16).replace('T','_').replace(':','');
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${b.fileName.replace(/\.xlsx$/i,'')} - backup ${stamp}.xlsx`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 5000);
-}
-async function renderBackupsPanel(){
-  const el = document.getElementById('backupsList');
-  if (!el) return;
-  const backups = await listBackups();
-  if (!backups.length){ el.innerHTML = '<span style="color:var(--text2)">No backups saved yet - load or refresh your Excel file to create the first one.</span>'; return; }
-  el.innerHTML = backups.map(b=>{
-    const dt = new Date(b.savedAt);
-    const label = dt.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    const kb = Math.round(b.size/1024);
-    return `<span class="day-chip"><b>${label}</b> - ${b.fileName} (${kb} KB) <button data-dl="${b.id}" title="Download this version">&#8681;</button> <button data-del="${b.id}" title="Delete this backup">&times;</button></span>`;
-  }).join('');
-  el.querySelectorAll('button[data-dl]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const id = Number(btn.getAttribute('data-dl'));
-      const backups2 = await listBackups();
-      const found = backups2.find(b=>b.id===id);
-      if (found) downloadBackup(found);
-    });
-  });
-  el.querySelectorAll('button[data-del]').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const id = Number(btn.getAttribute('data-del'));
-      if (!confirm('Delete this backup? This cannot be undone.')) return;
-      await deleteBackup(id);
-      renderBackupsPanel();
-    });
-  });
 }
 
 function excelSerialToDate(v){
@@ -1274,6 +1265,7 @@ function findPotentialDuplicate(row, excludeId){
 }
 function addActivityRow(row){
   if (!row.id) row.id = genId();
+  stampAuthor(row);
   const k = dateKey(row.reportDate);
   if (!state.history.days[k]) state.history.days[k] = [];
   state.history.days[k].push(serializeRow(row));
@@ -1287,6 +1279,8 @@ function updateActivityRow(id, row){
   if (!loc) return;
   const original = reviveRow(state.history.days[loc.dayKey][loc.idx]);
   if (original.sheetRow!=null) row.sheetRow = original.sheetRow;
+  if (original.createdBy) row.createdBy = original.createdBy;
+  stampAuthor(row);
   state.history.days[loc.dayKey].splice(loc.idx,1);
   if (!state.history.days[loc.dayKey].length) delete state.history.days[loc.dayKey];
   row.id = id;
@@ -2405,6 +2399,9 @@ function renderActivityDetail(f, targetKey, targetDate){
     const badgeClass = r.status==='Completed' ? 'badge-completed' : r.status==='In Progress' ? 'badge-progress' : r.status==='Rescheduled' ? 'badge-rescheduled' : 'badge-notstarted';
     const remarksText = r.remarks && r.remarks.trim() ? escapeHtml(r.remarks) : 'No remarks recorded for this activity.';
     const balanceLine = r.balanceStatus && r.balanceStatus.trim() ? `<br><b>Balance status:</b> ${escapeHtml(r.balanceStatus)}` : '';
+    const attributionLine = r.updatedBy
+      ? `<br><span style="color:var(--text2);font-size:12px;">Last updated by <b>${escapeHtml(r.updatedBy)}</b>${r.updatedAt ? ' on ' + new Date(r.updatedAt).toLocaleString() : ''}</span>`
+      : '';
     const abcCell = r.abcIndicator ? `<span class="badge badge-abc-${r.abcIndicator.toLowerCase()}">${r.abcIndicator}</span>` : '<span style="color:var(--text2)">-</span>';
     const workOrderCell = r.referenceNumber && r.referenceNumber.trim()
       ? `${escapeHtml(r.sapNumber)}<br><span style="color:var(--text2);font-size:11px;">Ref: ${escapeHtml(r.referenceNumber)}</span>`
@@ -2420,7 +2417,7 @@ function renderActivityDetail(f, targetKey, targetDate){
       ? `${escapeHtml(r.activity)} <span data-photo-view data-idx="${i}" style="position:relative;display:inline-block;vertical-align:middle;margin-left:2px;cursor:zoom-in;" title="Click to view photo${photos.length>1?'s':''}"><img src="${photos[0]}" style="width:26px;height:26px;object-fit:cover;border-radius:4px;border:1px solid var(--border);display:block;">${countBadge}</span>`
       : escapeHtml(r.activity);
     return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${activityCell}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
-      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}</td></tr>`;
+      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}${attributionLine}</td></tr>`;
   }).join('');
   tbody.querySelectorAll('[data-photo-view]').forEach(el=>{
     el.addEventListener('click', (e)=>{
@@ -2564,10 +2561,6 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
   populateDatalists();
   renderHistoryPanel();
   render();
-
-  if (rawBuf){
-    addBackup(fileName, rawBuf).then(renderBackupsPanel);
-  }
 }
 
 async function readFileAsWorkbook(file){
@@ -3574,8 +3567,6 @@ state.isSnapshot = !!window.__EMBEDDED_HISTORY__;
     document.getElementById('btnExportSnapshot').style.display='none';
     const histCard = document.getElementById('historyList').closest('.review-entry') || document.getElementById('historyList').closest('.card');
     if (histCard) histCard.style.display='none';
-    const backupsCard = document.getElementById('backupsList').closest('.card');
-    if (backupsCard) backupsCard.style.display='none';
     ['ltiBaseMH','ltiBaseDate','ltiDaysStart'].forEach(id=>{ const el=document.getElementById(id); if (el) el.disabled = true; });
     const saveBtn = document.getElementById('btnSaveLtiBase');
     if (saveBtn){ saveBtn.disabled = true; saveBtn.title = 'Read-only snapshot - open the live dashboard to change this.'; }
@@ -3595,7 +3586,6 @@ state.isSnapshot = !!window.__EMBEDDED_HISTORY__;
   if (!state.history.kpi) state.history.kpi = {};
   rebuildRowsFromHistory();
   initCloudSync();
-  renderBackupsPanel();
   setActivityFormDefaultDate();
   state.isUnlocked = computeIsUnlocked();
   applyLockState();
