@@ -51,10 +51,10 @@ export default async function AdminPage() {
           <Link
             key={s.href}
             href={s.href}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            className="rounded-xl border border-line bg-surface p-4 shadow-sm transition-shadow hover:shadow-md"
           >
-            <h3 className="text-sm font-semibold text-slate-900">{s.title}</h3>
-            <p className="mt-1 text-xs text-slate-500">{s.description}</p>
+            <h3 className="text-sm font-semibold text-ink-strong">{s.title}</h3>
+            <p className="mt-1 text-xs text-ink-muted">{s.description}</p>
           </Link>
         ))}
       </div>

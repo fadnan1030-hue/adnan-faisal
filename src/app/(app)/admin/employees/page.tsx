@@ -23,18 +23,18 @@ export default async function EmployeesPage() {
       <PageHeader title="Contractors &amp; Employees" description="Spec sections 6, 31." />
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Contractors</h2>
-        <form action={createContractor} className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-semibold text-ink">Contractors</h2>
+        <form action={createContractor} className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-surface p-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Name</label>
             <input name="name" required className={inputClass} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Contact Name</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Contact Name</label>
             <input name="contactName" className={inputClass} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Contact Email</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Contact Email</label>
             <input type="email" name="contactEmail" className={inputClass} />
           </div>
           <button type="submit" className={buttonPrimaryClass}>
@@ -53,7 +53,7 @@ export default async function EmployeesPage() {
             {contractors.length === 0 && <EmptyRow colSpan={3} />}
             {contractors.map((c) => (
               <tr key={c.id}>
-                <Td className="font-medium text-slate-900">{c.name}</Td>
+                <Td className="font-medium text-ink-strong">{c.name}</Td>
                 <Td>{c.contactName ?? "—"} {c.contactEmail ? `· ${c.contactEmail}` : ""}</Td>
                 <Td>
                   <StatusBadge status={c.active ? "ACTIVE" : "INACTIVE"} />
@@ -65,22 +65,22 @@ export default async function EmployeesPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Employees</h2>
-        <form action={createEmployee} className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-semibold text-ink">Employees</h2>
+        <form action={createEmployee} className="mb-3 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-surface p-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Employee #</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Employee #</label>
             <input name="employeeNumber" required className={inputClass} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Name</label>
             <input name="name" required className={inputClass} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Craft</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Craft</label>
             <input name="craft" className={inputClass} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Contractor</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">Contractor</label>
             <select name="contractorId" className={inputClass}>
               <option value="">—</option>
               {contractors.map((c) => (
@@ -109,7 +109,7 @@ export default async function EmployeesPage() {
             {employees.map((e) => (
               <tr key={e.id}>
                 <Td>{e.employeeNumber}</Td>
-                <Td className="font-medium text-slate-900">{e.name}</Td>
+                <Td className="font-medium text-ink-strong">{e.name}</Td>
                 <Td>{e.craft ?? "—"}</Td>
                 <Td>{e.contractor?.name ?? "—"}</Td>
                 <Td>

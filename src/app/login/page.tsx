@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { inputClass, buttonPrimaryClass } from "@/components/ui/form";
 
 function LoginForm() {
   const router = useRouter();
@@ -37,44 +38,44 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-surface-subtle px-4">
+      <div className="w-full max-w-sm bg-surface rounded-xl shadow-sm border border-line p-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-lg">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-lg">
             M
           </div>
-          <h1 className="text-lg font-semibold text-slate-900">
+          <h1 className="text-lg font-semibold text-ink-strong">
             Maintenance &amp; KPI Management System
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Sign in to your account</p>
+          <p className="mt-1 text-sm text-ink-muted">Sign in to your account</p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-ink mb-1">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={inputClass}
               placeholder="you@project.com"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-ink mb-1">Password</label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={inputClass}
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 dark:text-red-400 dark:bg-red-950 dark:border-red-900">
               {error}
             </p>
           )}
@@ -82,14 +83,14 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className={`w-full ${buttonPrimaryClass}`}
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <div className="mt-6 rounded-md bg-slate-50 border border-slate-200 p-3 text-xs text-slate-500">
-          <p className="font-medium text-slate-600 mb-1">Demo accounts (password: password123)</p>
+        <div className="mt-6 rounded-md bg-surface-muted border border-line p-3 text-xs text-ink-muted">
+          <p className="font-medium text-ink-soft mb-1">Demo accounts (password: password123)</p>
           <p>admin@demo.local — Administrator</p>
           <p>manager@demo.local — Maintenance Manager</p>
           <p>tech@demo.local — Technician</p>

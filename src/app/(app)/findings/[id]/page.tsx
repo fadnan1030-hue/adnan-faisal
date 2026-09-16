@@ -62,11 +62,11 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+          <dl className="divide-y divide-line-soft rounded-xl border border-line bg-surface">
             {fields.map(([label, value]) => (
               <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-                <dt className="text-slate-500">{label}</dt>
-                <dd className="font-medium text-slate-800">{value}</dd>
+                <dt className="text-ink-muted">{label}</dt>
+                <dd className="font-medium text-ink-strong">{value}</dd>
               </div>
             ))}
           </dl>
@@ -74,24 +74,24 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
           {(finding.immediateAction || finding.recommendedAction) && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {finding.immediateAction && (
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h3 className="mb-1 text-sm font-semibold text-slate-700">Immediate Action</h3>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{finding.immediateAction}</p>
+                <div className="rounded-xl border border-line bg-surface p-4">
+                  <h3 className="mb-1 text-sm font-semibold text-ink">Immediate Action</h3>
+                  <p className="text-sm text-ink-soft whitespace-pre-wrap">{finding.immediateAction}</p>
                 </div>
               )}
               {finding.recommendedAction && (
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <h3 className="mb-1 text-sm font-semibold text-slate-700">Recommended Action</h3>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{finding.recommendedAction}</p>
+                <div className="rounded-xl border border-line bg-surface p-4">
+                  <h3 className="mb-1 text-sm font-semibold text-ink">Recommended Action</h3>
+                  <p className="text-sm text-ink-soft whitespace-pre-wrap">{finding.recommendedAction}</p>
                 </div>
               )}
             </div>
           )}
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">Photographs ({finding.photos.length})</h2>
+            <h2 className="mb-2 text-sm font-semibold text-ink">Photographs ({finding.photos.length})</h2>
             {finding.photos.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-300 bg-white py-8 text-center text-sm text-slate-400">
+              <p className="rounded-xl border border-dashed border-line-strong bg-surface py-8 text-center text-sm text-ink-faint">
                 No photographs attached yet.
               </p>
             ) : (
@@ -99,22 +99,22 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
                 {finding.photos.map((p) => (
                   <a key={p.id} href={p.filePath} target="_blank" rel="noreferrer" className="block">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.filePath} alt={p.caption ?? p.category} className="aspect-square w-full rounded-lg border border-slate-200 object-cover" />
-                    <p className="mt-1 truncate text-xs text-slate-500">{p.category}</p>
+                    <img src={p.filePath} alt={p.caption ?? p.category} className="aspect-square w-full rounded-lg border border-line object-cover" />
+                    <p className="mt-1 truncate text-xs text-ink-muted">{p.category}</p>
                   </a>
                 ))}
               </div>
             )}
 
             {canWrite && (
-              <form action={uploadFindingPhotos} className="mt-4 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+              <form action={uploadFindingPhotos} className="mt-4 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-surface p-4">
                 <input type="hidden" name="findingId" value={finding.id} />
                 <div className="flex-1 min-w-[200px]">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Add Photos</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-soft">Add Photos</label>
                   <input type="file" name="photos" accept="image/*" multiple className={inputClass} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-soft">Category</label>
                   <select name="category" defaultValue="FINDING" className={inputClass}>
                     {PHOTO_CATEGORIES.map((c) => (
                       <option key={c} value={c}>
@@ -124,7 +124,7 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">Caption</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-soft">Caption</label>
                   <input type="text" name="caption" className={inputClass} />
                 </div>
                 <button type="submit" className={buttonPrimaryClass}>
@@ -137,31 +137,31 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
 
         <aside className="space-y-4">
           {finding.equipment && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Equipment</h3>
-              <Link href={`/equipment/${finding.equipment.id}`} className="text-sm text-blue-700 hover:underline">
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Equipment</h3>
+              <Link href={`/equipment/${finding.equipment.id}`} className="text-sm text-indigo-700 hover:underline">
                 {finding.equipment.tagNumber}
               </Link>
             </div>
           )}
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">Linked Actions ({finding.actions.length})</h3>
+          <div className="rounded-xl border border-line bg-surface p-4">
+            <h3 className="mb-1 text-sm font-semibold text-ink">Linked Actions ({finding.actions.length})</h3>
             <ul className="space-y-1 text-sm">
               {finding.actions.map((a) => (
                 <li key={a.id}>
-                  <Link href={`/actions/${a.id}`} className="text-blue-700 hover:underline">
+                  <Link href={`/actions/${a.id}`} className="text-indigo-700 hover:underline">
                     {a.description}
                   </Link>{" "}
                   <StatusBadge status={a.status} />
                 </li>
               ))}
-              {finding.actions.length === 0 && <li className="text-slate-400">No actions raised yet.</li>}
+              {finding.actions.length === 0 && <li className="text-ink-faint">No actions raised yet.</li>}
             </ul>
           </div>
           {finding.remarks && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Remarks</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{finding.remarks}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Remarks</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{finding.remarks}</p>
             </div>
           )}
         </aside>

@@ -94,9 +94,9 @@ export default async function EquipmentPage({
           {!projectId && <EmptyRow colSpan={7} message="Select a project to view equipment." />}
           {projectId && equipment.length === 0 && <EmptyRow colSpan={7} />}
           {equipment.map((e) => (
-            <tr key={e.id} className="cursor-pointer hover:bg-slate-50">
+            <tr key={e.id} className="cursor-pointer hover:bg-surface-muted">
               <Td>
-                <Link href={`/equipment/${e.id}`} className="font-medium text-blue-700 hover:underline">
+                <Link href={`/equipment/${e.id}`} className="font-medium text-indigo-700 hover:underline">
                   {e.tagNumber}
                 </Link>
               </Td>
@@ -117,7 +117,7 @@ export default async function EquipmentPage({
         </TBody>
       </Table>
       {equipment.length === 200 && (
-        <p className="mt-2 text-xs text-slate-400">Showing first 200 results — refine your search.</p>
+        <p className="mt-2 text-xs text-ink-faint">Showing first 200 results — refine your search.</p>
       )}
     </div>
   );

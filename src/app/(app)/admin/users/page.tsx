@@ -38,7 +38,7 @@ export default async function UsersPage() {
           {users.length === 0 && <EmptyRow colSpan={5} />}
           {users.map((u) => (
             <tr key={u.id}>
-              <Td className="font-medium text-slate-900">{u.name}</Td>
+              <Td className="font-medium text-ink-strong">{u.name}</Td>
               <Td>{u.email}</Td>
               <Td>
                 <RoleSelect userId={u.id} role={u.role} />

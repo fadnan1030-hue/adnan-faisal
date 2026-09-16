@@ -77,7 +77,7 @@ export default async function PmPage({
           {records.map((r) => (
             <tr key={r.id}>
               <Td>
-                <Link href={`/pm/${r.id}`} className="font-medium text-blue-700 hover:underline">
+                <Link href={`/pm/${r.id}`} className="font-medium text-indigo-700 hover:underline">
                   {formatDate(r.plannedDate)}
                 </Link>
               </Td>

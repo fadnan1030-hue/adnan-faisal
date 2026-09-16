@@ -66,7 +66,7 @@ export default async function NotificationsPage() {
       />
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Live Alerts ({alertCount})</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">Live Alerts ({alertCount})</h2>
         <Table>
           <THead>
             <tr>
@@ -86,7 +86,7 @@ export default async function NotificationsPage() {
                 <Td>{r.pmType ?? "PM"}</Td>
                 <Td>{formatDate(r.plannedDate)}</Td>
                 <Td>
-                  <Link href={`/pm/${r.id}`} className="text-blue-700 hover:underline text-xs">
+                  <Link href={`/pm/${r.id}`} className="text-indigo-700 hover:underline text-xs">
                     View
                   </Link>
                 </Td>
@@ -99,7 +99,7 @@ export default async function NotificationsPage() {
                 <Td className="max-w-xs truncate">{r.failureDescription ?? "CM"}</Td>
                 <Td>{formatDate(r.breakdownDate)}</Td>
                 <Td>
-                  <Link href={`/cm/${r.id}`} className="text-blue-700 hover:underline text-xs">
+                  <Link href={`/cm/${r.id}`} className="text-indigo-700 hover:underline text-xs">
                     View
                   </Link>
                 </Td>
@@ -112,7 +112,7 @@ export default async function NotificationsPage() {
                 <Td className="max-w-xs truncate">{r.description}</Td>
                 <Td>{formatDate(r.targetDate)}</Td>
                 <Td>
-                  <Link href={`/actions/${r.id}`} className="text-blue-700 hover:underline text-xs">
+                  <Link href={`/actions/${r.id}`} className="text-indigo-700 hover:underline text-xs">
                     View
                   </Link>
                 </Td>
@@ -125,7 +125,7 @@ export default async function NotificationsPage() {
                 <Td>{r.sceCategory}</Td>
                 <Td>{formatDate(r.nextDueDate)}</Td>
                 <Td>
-                  <Link href={`/sce/${r.id}`} className="text-blue-700 hover:underline text-xs">
+                  <Link href={`/sce/${r.id}`} className="text-indigo-700 hover:underline text-xs">
                     View
                   </Link>
                 </Td>
@@ -136,7 +136,7 @@ export default async function NotificationsPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Assigned Notifications</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">Assigned Notifications</h2>
         <Table>
           <THead>
             <tr>
@@ -150,7 +150,7 @@ export default async function NotificationsPage() {
             {stored.length === 0 && <EmptyRow colSpan={4} />}
             {stored.map((n) => (
               <tr key={n.id}>
-                <Td>{n.link ? <Link href={n.link} className="text-blue-700 hover:underline">{n.message}</Link> : n.message}</Td>
+                <Td>{n.link ? <Link href={n.link} className="text-indigo-700 hover:underline">{n.message}</Link> : n.message}</Td>
                 <Td>{formatDateTime(n.createdAt)}</Td>
                 <Td>{n.isRead ? <StatusBadge status="CLOSED" /> : <StatusBadge status="OPEN" />}</Td>
                 <Td>

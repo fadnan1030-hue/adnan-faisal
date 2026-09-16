@@ -45,14 +45,14 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         description="Configurable lookup lists (spec section 54) — add, edit or disable values without a schema change."
       />
 
-      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1 w-fit">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-line bg-surface p-1 w-fit">
         {CONFIG_CATEGORIES.map((c) => (
           <Link
             key={c}
             href={`?category=${c}`}
             className={clsx(
               "rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap",
-              category === c ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              category === c ? "bg-indigo-600 text-white" : "text-ink-soft hover:bg-surface-subtle"
             )}
           >
             {CATEGORY_LABELS[c] ?? c}
@@ -60,14 +60,14 @@ export default async function ConfigPage({ searchParams }: { searchParams: Promi
         ))}
       </div>
 
-      <form action={addConfigOption} className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4">
+      <form action={addConfigOption} className="mb-4 flex flex-wrap items-end gap-2 rounded-xl border border-line bg-surface p-4">
         <input type="hidden" name="category" value={category} />
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Code</label>
+          <label className="mb-1 block text-xs font-medium text-ink-soft">Code</label>
           <input name="code" required className={inputClass} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Label</label>
+          <label className="mb-1 block text-xs font-medium text-ink-soft">Label</label>
           <input name="label" required className={inputClass} />
         </div>
         <button type="submit" className={buttonPrimaryClass}>

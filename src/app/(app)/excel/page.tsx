@@ -44,16 +44,16 @@ export default async function ExcelPage({ searchParams }: { searchParams: Promis
       />
 
       <section className="mb-8">
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Export to Excel</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">Export to Excel</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {EXPORT_OPTIONS.map((o) => (
             <a
               key={o.dataset}
               href={`/api/export/excel?dataset=${o.dataset}`}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md"
+              className="rounded-xl border border-line bg-surface p-4 shadow-sm hover:shadow-md"
             >
-              <h3 className="text-sm font-semibold text-slate-900">{o.label}</h3>
-              <p className="mt-1 text-xs text-slate-500">{o.description}</p>
+              <h3 className="text-sm font-semibold text-ink-strong">{o.label}</h3>
+              <p className="mt-1 text-xs text-ink-muted">{o.description}</p>
             </a>
           ))}
         </div>
@@ -61,15 +61,19 @@ export default async function ExcelPage({ searchParams }: { searchParams: Promis
 
       {canImport && (
         <section className="mb-8">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Import Work Orders</h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Import Work Orders</h2>
+          <p className="mb-3 text-xs text-ink-muted">
             Upload an .xlsx workbook. The first worksheet is read and mapped using the column names from the
             reference workbook: WO#, Work Center, Operation Short Text, Scope, Sort Field, Location, Plan start
             date, Plan Finish Date, Earliest Finish Date, Actual Start Date, Actual Finish Date, Plan Hrs, Actual
             Hrs, Remarks.
           </p>
-          {error && <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          <form action={importWorkOrders} className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          {error && (
+            <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+              {error}
+            </p>
+          )}
+          <form action={importWorkOrders} className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-4">
             <div className="min-w-[220px]">
               <Field label="Workbook (.xlsx)" htmlFor="file">
                 <input type="file" id="file" name="file" accept=".xlsx" required className={inputClass} />
@@ -91,15 +95,15 @@ export default async function ExcelPage({ searchParams }: { searchParams: Promis
       )}
 
       {lastJob && (
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Import Summary — {lastJob.sourceFileName}</h2>
-          <p className="text-sm text-slate-600">
+        <section className="mb-8 rounded-xl border border-line bg-surface p-4">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Import Summary — {lastJob.sourceFileName}</h2>
+          <p className="text-sm text-ink-soft">
             {lastJob.importedRows} imported, {lastJob.failedRows} failed, of {lastJob.totalRows} total rows.
           </p>
           {lastJob.errors.length > 0 && (
             <div className="mt-3">
-              <h3 className="mb-1 text-xs font-semibold uppercase text-slate-400">Rejected Rows</h3>
-              <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-red-600">
+              <h3 className="mb-1 text-xs font-semibold uppercase text-ink-faint">Rejected Rows</h3>
+              <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-red-600 dark:text-red-400">
                 {lastJob.errors.map((e) => (
                   <li key={e.id}>
                     Row {e.rowNumber}: {e.errorMessage}
@@ -112,7 +116,7 @@ export default async function ExcelPage({ searchParams }: { searchParams: Promis
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent Import Jobs</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">Recent Import Jobs</h2>
         <Table>
           <THead>
             <tr>

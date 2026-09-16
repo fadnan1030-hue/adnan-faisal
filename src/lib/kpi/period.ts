@@ -54,6 +54,14 @@ export function resolvePeriod(
   return { start, end };
 }
 
+/** The immediately preceding range of the same length, for period-over-period comparison. */
+export function getPreviousPeriod(range: DateRange): DateRange {
+  const durationMs = range.end.getTime() - range.start.getTime() + 1;
+  const end = new Date(range.start.getTime() - 1);
+  const start = new Date(end.getTime() - durationMs + 1);
+  return { start, end };
+}
+
 export const PERIOD_LABELS: Record<PeriodType, string> = {
   DAILY: "Today",
   WEEKLY: "This Week",

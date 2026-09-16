@@ -33,8 +33,12 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
       />
 
       {canWrite && (
-        <form action={uploadDocument} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
-          {error && <p className="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        <form action={uploadDocument} className="mb-6 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-4">
+          {error && (
+            <p className="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+              {error}
+            </p>
+          )}
           <div>
             <Field label="File" htmlFor="file">
               <input type="file" id="file" name="file" required className={inputClass} />
@@ -77,7 +81,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
           {documents.map((d) => (
             <tr key={d.id}>
               <Td>
-                <a href={d.filePath} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+                <a href={d.filePath} target="_blank" rel="noreferrer" className="text-indigo-700 hover:underline">
                   {d.fileName}
                 </a>
               </Td>

@@ -45,7 +45,7 @@ export default async function ProjectsPage() {
           {projects.length === 0 && <EmptyRow colSpan={9} />}
           {projects.map((p) => (
             <tr key={p.id}>
-              <Td className="font-medium text-slate-900">{p.code}</Td>
+              <Td className="font-medium text-ink-strong">{p.code}</Td>
               <Td>{p.name}</Td>
               <Td>{p.client ?? "—"}</Td>
               <Td>{p.contractor ?? "—"}</Td>

@@ -18,9 +18,14 @@ import {
   getManHourKpis,
   getLtiFreeManHours,
 } from "@/lib/kpi/engine";
-import { resolvePeriod, PERIOD_LABELS, type PeriodType } from "@/lib/kpi/period";
+import { resolvePeriod, getPreviousPeriod, PERIOD_LABELS, type PeriodType } from "@/lib/kpi/period";
 import { getMaintenanceTrend, getManHourTrend } from "@/lib/kpi/trends";
-import { MaintenanceTrendChart, PmCmTrendChart, ManHourTrendChart } from "@/components/dashboard/dashboard-charts";
+import {
+  MaintenanceTrendChart,
+  PmCmTrendChart,
+  ManHourTrendChart,
+  SimplePieChart,
+} from "@/components/dashboard/dashboard-charts";
 
 const PERIOD_TYPES: PeriodType[] = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY", "CUSTOM"];
 
@@ -38,7 +43,7 @@ export default async function DashboardPage({
     return (
       <div>
         <PageHeader title="Dashboard" />
-        <p className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center text-sm text-slate-400">
+        <p className="rounded-xl border border-dashed border-line-strong bg-surface py-10 text-center text-sm text-ink-faint">
           No project configured yet. Go to Administration → Projects to create one.
         </p>
       </div>
@@ -46,41 +51,85 @@ export default async function DashboardPage({
   }
 
   const range = resolvePeriod(period, new Date(), { start, end });
+  const previousRange = getPreviousPeriod(range);
 
-  const [maintenance, sce, actions, hse, qc, manHours, ltiFree, trend, hourTrend, recentActivity, criticalFindings, overdueActions] =
-    await Promise.all([
-      getMaintenanceKpis(project.id, range),
-      getSceKpis(project.id),
-      getActionKpis(project.id),
-      getHseKpis(project.id, range),
-      getQcKpis(project.id, range),
-      getManHourKpis(project.id, range),
-      getLtiFreeManHours(project.id),
-      getMaintenanceTrend(project.id, 6),
-      getManHourTrend(project.id, 6),
-      prisma.workOrder.findMany({
-        where: { projectId: project.id },
-        orderBy: { updatedAt: "desc" },
-        take: 8,
-        include: { equipment: { select: { tagNumber: true } } },
-      }),
-      prisma.finding.findMany({
-        where: { projectId: project.id, severity: { in: ["HIGH", "CRITICAL"] }, status: { not: "CLOSED" } },
-        orderBy: { date: "desc" },
-        take: 8,
-        include: { equipment: { select: { tagNumber: true } } },
-      }),
-      prisma.action.findMany({
-        where: {
-          projectId: project.id,
-          status: { in: ["OPEN", "IN_PROGRESS", "ASSIGNED", "PENDING_VERIFICATION"] },
-          targetDate: { lt: new Date() },
-        },
-        orderBy: { targetDate: "asc" },
-        take: 8,
-        include: { equipment: { select: { tagNumber: true } } },
-      }),
-    ]);
+  const [
+    maintenance,
+    sce,
+    actions,
+    hse,
+    qc,
+    manHours,
+    ltiFree,
+    trend,
+    hourTrend,
+    recentActivity,
+    criticalFindings,
+    overdueActions,
+    previousMaintenance,
+    previousManHours,
+    workOrdersByStatus,
+    openFindingsBySeverity,
+  ] = await Promise.all([
+    getMaintenanceKpis(project.id, range),
+    getSceKpis(project.id),
+    getActionKpis(project.id),
+    getHseKpis(project.id, range),
+    getQcKpis(project.id, range),
+    getManHourKpis(project.id, range),
+    getLtiFreeManHours(project.id),
+    getMaintenanceTrend(project.id, 6),
+    getManHourTrend(project.id, 6),
+    prisma.workOrder.findMany({
+      where: { projectId: project.id },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      include: { equipment: { select: { tagNumber: true } } },
+    }),
+    prisma.finding.findMany({
+      where: { projectId: project.id, severity: { in: ["HIGH", "CRITICAL"] }, status: { not: "CLOSED" } },
+      orderBy: { date: "desc" },
+      take: 8,
+      include: { equipment: { select: { tagNumber: true } } },
+    }),
+    prisma.action.findMany({
+      where: {
+        projectId: project.id,
+        status: { in: ["OPEN", "IN_PROGRESS", "ASSIGNED", "PENDING_VERIFICATION"] },
+        targetDate: { lt: new Date() },
+      },
+      orderBy: { targetDate: "asc" },
+      take: 8,
+      include: { equipment: { select: { tagNumber: true } } },
+    }),
+    getMaintenanceKpis(project.id, previousRange),
+    getManHourKpis(project.id, previousRange),
+    prisma.workOrder.groupBy({
+      by: ["status"],
+      where: { projectId: project.id, plannedStartDate: { gte: range.start, lte: range.end } },
+      _count: { _all: true },
+    }),
+    prisma.finding.groupBy({
+      by: ["severity"],
+      where: { projectId: project.id, status: { not: "CLOSED" } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const workOrderStatusData = workOrdersByStatus.map((g) => ({ name: g.status, value: g._count._all }));
+  const findingSeverityData = openFindingsBySeverity.map((g) => ({ name: g.severity, value: g._count._all }));
+
+  const COMPARISON_ROWS: { label: string; current: number | null; previous: number | null; format: "percent" | "number" }[] = [
+    { label: "PM Compliance", current: maintenance.pmCompliancePct, previous: previousMaintenance.pmCompliancePct, format: "percent" },
+    { label: "CM Completion", current: maintenance.cmCompletionPct, previous: previousMaintenance.cmCompletionPct, format: "percent" },
+    {
+      label: "Overall Completion",
+      current: maintenance.overallCompletionPct,
+      previous: previousMaintenance.overallCompletionPct,
+      format: "percent",
+    },
+    { label: "Total Man-Hours", current: manHours.totalHours, previous: previousManHours.totalHours, format: "number" },
+  ];
 
   return (
     <div>
@@ -90,14 +139,14 @@ export default async function DashboardPage({
       />
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
+        <nav className="flex gap-1 rounded-lg border border-line bg-surface p-1">
           {PERIOD_TYPES.map((p) => (
             <Link
               key={p}
               href={`?period=${p}`}
               className={clsx(
                 "rounded-md px-3 py-1.5 text-sm font-medium",
-                period === p ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                period === p ? "bg-indigo-600 text-white" : "text-ink-soft hover:bg-surface-subtle"
               )}
             >
               {PERIOD_LABELS[p]}
@@ -108,7 +157,7 @@ export default async function DashboardPage({
           <form className="flex items-center gap-2">
             <input type="hidden" name="period" value="CUSTOM" />
             <input type="date" name="start" defaultValue={start} className={inputClass} />
-            <span className="text-sm text-slate-400">to</span>
+            <span className="text-sm text-ink-faint">to</span>
             <input type="date" name="end" defaultValue={end} className={inputClass} />
             <button type="submit" className={buttonPrimaryClass}>
               Apply
@@ -118,7 +167,7 @@ export default async function DashboardPage({
       </div>
 
       {/* KPI Row 1 - Maintenance */}
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Maintenance</h2>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Maintenance</h2>
       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           label="PM Compliance"
@@ -149,7 +198,7 @@ export default async function DashboardPage({
       </div>
 
       {/* KPI Row 2 - HSE / QC */}
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">HSE &amp; QC</h2>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">HSE &amp; QC</h2>
       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="LTI" value={String(hse.ltiCount)} tone={hse.ltiCount > 0 ? "critical" : "good"} href="/hse" />
         <StatCard label="TRIF" value={String(hse.trifCount)} tone={hse.trifCount > 0 ? "warning" : "good"} href="/hse" />
@@ -168,7 +217,7 @@ export default async function DashboardPage({
       </div>
 
       {/* KPI Row 3 - Man-hours & Actions */}
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Man-Hours &amp; Actions</h2>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Man-Hours &amp; Actions</h2>
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           label="LTI-Free Man-Hours"
@@ -199,24 +248,79 @@ export default async function DashboardPage({
 
       {/* Charts */}
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Planned vs Completed (6-Month Trend)</h3>
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">Planned vs Completed (6-Month Trend)</h3>
           <MaintenanceTrendChart data={trend} />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">PM / CM Completion Trend</h3>
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">PM / CM Completion Trend</h3>
           <PmCmTrendChart data={trend} />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Man-Hour Trend</h3>
+        <div className="rounded-xl border border-line bg-surface p-4 lg:col-span-2">
+          <h3 className="mb-2 text-sm font-semibold text-ink">Man-Hour Trend</h3>
           <ManHourTrendChart data={hourTrend} />
+        </div>
+      </div>
+
+      {/* Reports: composition pie charts + period-over-period comparison */}
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+        Reports — {PERIOD_LABELS[period]} vs Previous Period
+      </h2>
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">Work Orders by Status</h3>
+          <SimplePieChart data={workOrderStatusData} />
+        </div>
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">Open Findings by Severity</h3>
+          <SimplePieChart data={findingSeverityData} />
+        </div>
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">
+            Current vs Previous {PERIOD_LABELS[period] === "Custom Range" ? "Range" : "Period"}
+          </h3>
+          <table className="w-full text-sm">
+            <tbody>
+              {COMPARISON_ROWS.map((row) => {
+                const hasBoth = row.current !== null && row.previous !== null;
+                const delta = hasBoth ? row.current! - row.previous! : null;
+                const deltaLabel =
+                  delta === null
+                    ? "N/A"
+                    : row.format === "percent"
+                      ? `${delta >= 0 ? "+" : ""}${delta.toFixed(1)} pts`
+                      : `${delta >= 0 ? "+" : ""}${formatNumber(delta)}`;
+                const deltaClass =
+                  delta === null
+                    ? "text-ink-faint"
+                    : delta > 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : delta < 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-ink-muted";
+                return (
+                  <tr key={row.label} className="border-b border-line-soft last:border-0">
+                    <td className="py-2 pr-2 text-ink-soft">{row.label}</td>
+                    <td className="py-2 pr-2 text-right font-medium text-ink-strong">
+                      {row.format === "percent" ? formatPercent(row.current) : formatNumber(row.current)}
+                    </td>
+                    <td className="py-2 pr-2 text-right text-ink-faint">
+                      {row.format === "percent" ? formatPercent(row.previous) : formatNumber(row.previous)}
+                    </td>
+                    <td className={`py-2 text-right font-medium ${deltaClass}`}>{deltaLabel}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-ink-faint">Columns: current, previous, change.</p>
         </div>
       </div>
 
       {/* Bottom lists */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Recent Maintenance Activities</h3>
+          <h3 className="mb-2 text-sm font-semibold text-ink">Recent Maintenance Activities</h3>
           <Table>
             <THead>
               <tr>
@@ -230,7 +334,7 @@ export default async function DashboardPage({
               {recentActivity.map((w) => (
                 <tr key={w.id}>
                   <Td>
-                    <Link href={`/work-orders/${w.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/work-orders/${w.id}`} className="text-indigo-700 hover:underline">
                       {w.workOrderNumber}
                     </Link>
                   </Td>
@@ -245,7 +349,7 @@ export default async function DashboardPage({
         </section>
 
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Critical Findings</h3>
+          <h3 className="mb-2 text-sm font-semibold text-ink">Critical Findings</h3>
           <Table>
             <THead>
               <tr>
@@ -260,7 +364,7 @@ export default async function DashboardPage({
                 <tr key={f.id}>
                   <Td>{f.equipment?.tagNumber ?? "—"}</Td>
                   <Td className="max-w-[160px] truncate">
-                    <Link href={`/findings/${f.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/findings/${f.id}`} className="text-indigo-700 hover:underline">
                       {f.description}
                     </Link>
                   </Td>
@@ -274,7 +378,7 @@ export default async function DashboardPage({
         </section>
 
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Overdue Actions</h3>
+          <h3 className="mb-2 text-sm font-semibold text-ink">Overdue Actions</h3>
           <Table>
             <THead>
               <tr>
@@ -287,7 +391,7 @@ export default async function DashboardPage({
               {overdueActions.map((a) => (
                 <tr key={a.id}>
                   <Td className="max-w-[180px] truncate">
-                    <Link href={`/actions/${a.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/actions/${a.id}`} className="text-indigo-700 hover:underline">
                       {a.description}
                     </Link>
                   </Td>

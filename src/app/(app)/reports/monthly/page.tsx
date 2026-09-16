@@ -25,7 +25,7 @@ export default async function MonthlyReportPage({
   const period: PeriodType = periodParam === "WEEKLY" ? "WEEKLY" : "MONTHLY";
 
   if (!project) {
-    return <p className="text-sm text-slate-400">No project selected.</p>;
+    return <p className="text-sm text-ink-faint">No project selected.</p>;
   }
 
   const range = resolvePeriod(period);
@@ -51,19 +51,19 @@ export default async function MonthlyReportPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl bg-white p-8 print:p-0">
+    <div className="mx-auto max-w-4xl bg-surface p-8 print:p-0">
       <div className="no-print mb-4">
         <PrintButton />
       </div>
 
       {/* Cover */}
-      <div className="mb-8 border-b border-slate-200 pb-6">
-        <p className="text-xs uppercase tracking-wide text-slate-400">Management Report</p>
-        <h1 className="mt-1 text-2xl font-bold text-slate-900">{project.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="mb-8 border-b border-line pb-6">
+        <p className="text-xs uppercase tracking-wide text-ink-faint">Management Report</p>
+        <h1 className="mt-1 text-2xl font-bold text-ink-strong">{project.name}</h1>
+        <p className="mt-1 text-sm text-ink-muted">
           Reporting Period: {PERIOD_LABELS[period]} ({formatDate(range.start)} – {formatDate(range.end)})
         </p>
-        <p className="mt-1 text-xs text-slate-400">Generated {formatDate(new Date())} — Maintenance &amp; KPI Management System</p>
+        <p className="mt-1 text-xs text-ink-faint">Generated {formatDate(new Date())} — Maintenance &amp; KPI Management System</p>
       </div>
 
       {/* Executive Summary */}
@@ -140,9 +140,9 @@ export default async function MonthlyReportPage({
 
       <ReportSection title="Equipment Findings (High / Critical)">
         {criticalFindings.length === 0 ? (
-          <p className="text-sm text-slate-400">No high/critical findings this period.</p>
+          <p className="text-sm text-ink-faint">No high/critical findings this period.</p>
         ) : (
-          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-ink">
             {criticalFindings.map((f) => (
               <li key={f.id}>
                 <strong>{f.equipment?.tagNumber ?? "—"}</strong> — {f.description} ({f.severity})
@@ -163,7 +163,7 @@ export default async function MonthlyReportPage({
           ]}
         />
         {openActions.length > 0 && (
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-ink">
             {openActions.map((a) => (
               <li key={a.id}>
                 {a.description} {a.equipment ? `(${a.equipment.tagNumber})` : ""} — {a.status}
@@ -173,7 +173,7 @@ export default async function MonthlyReportPage({
         )}
       </ReportSection>
 
-      <p className="mt-8 border-t border-slate-200 pt-4 text-center text-[11px] text-slate-400">
+      <p className="mt-8 border-t border-line pt-4 text-center text-[11px] text-ink-faint">
         Page generated automatically from live project data. No values on this report are manually entered.
       </p>
     </div>
@@ -183,7 +183,7 @@ export default async function MonthlyReportPage({
 function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-6 break-inside-avoid">
-      <h2 className="mb-2 border-b border-slate-200 pb-1 text-sm font-semibold uppercase tracking-wide text-slate-600">
+      <h2 className="mb-2 border-b border-line pb-1 text-sm font-semibold uppercase tracking-wide text-ink-soft">
         {title}
       </h2>
       {children}
@@ -193,20 +193,20 @@ function ReportSection({ title, children }: { title: string; children: React.Rea
 
 function ReportStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-slate-200 p-3">
-      <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-slate-900">{value}</p>
+    <div className="rounded-lg border border-line p-3">
+      <p className="text-[10px] uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-ink-strong">{value}</p>
     </div>
   );
 }
 
 function ReportTable({ rows }: { rows: [string, string][] }) {
   return (
-    <dl className="divide-y divide-slate-100 text-sm">
+    <dl className="divide-y divide-line-soft text-sm">
       {rows.map(([label, value]) => (
         <div key={label} className="flex justify-between py-1.5">
-          <dt className="text-slate-500">{label}</dt>
-          <dd className="font-medium text-slate-800">{value}</dd>
+          <dt className="text-ink-muted">{label}</dt>
+          <dd className="font-medium text-ink-strong">{value}</dd>
         </div>
       ))}
     </dl>

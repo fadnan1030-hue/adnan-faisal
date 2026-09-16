@@ -38,25 +38,25 @@ export default async function HseObservationDetailPage({ params }: { params: Pro
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+          <dl className="divide-y divide-line-soft rounded-xl border border-line bg-surface">
             {fields.map(([label, value]) => (
               <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-                <dt className="text-slate-500">{label}</dt>
-                <dd className="font-medium text-slate-800">{value}</dd>
+                <dt className="text-ink-muted">{label}</dt>
+                <dd className="font-medium text-ink-strong">{value}</dd>
               </div>
             ))}
           </dl>
           {observation.immediateAction && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Immediate Action</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{observation.immediateAction}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Immediate Action</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{observation.immediateAction}</p>
             </div>
           )}
         </div>
 
         {canWrite && (
-          <aside className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold text-slate-700">Close Out</h3>
+          <aside className="rounded-xl border border-line bg-surface p-4">
+            <h3 className="mb-3 text-sm font-semibold text-ink">Close Out</h3>
             <form action={updateHseObservation} className="space-y-3">
               <input type="hidden" name="id" value={observation.id} />
               <Field label="Corrective Action" htmlFor="correctiveAction">

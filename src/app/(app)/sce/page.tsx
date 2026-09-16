@@ -59,7 +59,7 @@ export default async function ScePage() {
           {records.map((r) => (
             <tr key={r.id}>
               <Td>
-                <Link href={`/sce/${r.id}`} className="font-medium text-blue-700 hover:underline">
+                <Link href={`/sce/${r.id}`} className="font-medium text-indigo-700 hover:underline">
                   {r.equipment.tagNumber}
                 </Link>
               </Td>

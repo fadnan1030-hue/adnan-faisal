@@ -40,14 +40,14 @@ export default async function KpiManagementPage({ searchParams }: { searchParams
 
       {canWrite && (
         <section className="mb-8">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Overall KPI Weightage</h2>
-          <p className="mb-3 text-xs text-slate-500">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Overall KPI Weightage</h2>
+          <p className="mb-3 text-xs text-ink-muted">
             Weights must total 100%. Current total: <strong>{totalWeight}%</strong>
           </p>
-          <form action={saveKpiWeights} className="flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4">
+          <form action={saveKpiWeights} className="flex flex-wrap items-end gap-4 rounded-xl border border-line bg-surface p-4">
             {WEIGHT_MODULES.map((m) => (
               <div key={m}>
-                <label className="mb-1 block text-xs font-medium text-slate-600">{m}</label>
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{m}</label>
                 <input
                   type="number"
                   step="0.1"
@@ -55,7 +55,7 @@ export default async function KpiManagementPage({ searchParams }: { searchParams
                   defaultValue={weightByModule.get(m)?.weightPct.toString() ?? "0"}
                   className={`${inputClass} w-24`}
                 />
-                <span className="ml-1 text-xs text-slate-400">%</span>
+                <span className="ml-1 text-xs text-ink-faint">%</span>
               </div>
             ))}
             <button type="submit" className={buttonPrimaryClass}>
@@ -67,8 +67,8 @@ export default async function KpiManagementPage({ searchParams }: { searchParams
 
       {canWrite && (
         <section className="mb-8">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">New KPI Definition</h2>
-          <form action={createKpiDefinition} className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-3">
+          <h2 className="mb-2 text-sm font-semibold text-ink">New KPI Definition</h2>
+          <form action={createKpiDefinition} className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-3">
             <Field label="Name" htmlFor="name" required>
               <input id="name" name="name" required className={inputClass} />
             </Field>
@@ -114,7 +114,7 @@ export default async function KpiManagementPage({ searchParams }: { searchParams
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-700">KPI Definitions</h2>
+        <h2 className="mb-2 text-sm font-semibold text-ink">KPI Definitions</h2>
         <Table>
           <THead>
             <tr>
@@ -132,7 +132,7 @@ export default async function KpiManagementPage({ searchParams }: { searchParams
             {definitions.length === 0 && <EmptyRow colSpan={canWrite ? 8 : 7} />}
             {definitions.map((d) => (
               <tr key={d.id}>
-                <Td className="font-medium text-slate-900">{d.name}</Td>
+                <Td className="font-medium text-ink-strong">{d.name}</Td>
                 <Td>{d.module}</Td>
                 <Td>{d.formulaType.replace(/_/g, " ")}</Td>
                 <Td>{d.target?.toString() ?? "—"}</Td>

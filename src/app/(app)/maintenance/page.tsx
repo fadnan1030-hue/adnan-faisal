@@ -50,14 +50,14 @@ export default async function MaintenanceOverviewPage() {
           { label: "Work Orders", href: "/work-orders", desc: "Full work order database" },
           { label: "Daily Planning", href: "/daily-planning", desc: "Today / tomorrow / overdue jobs" },
         ].map((m) => (
-          <Link key={m.href} href={m.href} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md">
-            <h3 className="text-sm font-semibold text-slate-900">{m.label}</h3>
-            <p className="mt-1 text-xs text-slate-500">{m.desc}</p>
+          <Link key={m.href} href={m.href} className="rounded-xl border border-line bg-surface p-4 shadow-sm hover:shadow-md">
+            <h3 className="text-sm font-semibold text-ink-strong">{m.label}</h3>
+            <p className="mt-1 text-xs text-ink-muted">{m.desc}</p>
           </Link>
         ))}
       </div>
 
-      <h2 className="mb-2 text-sm font-semibold text-slate-700">Recently Updated Work Orders</h2>
+      <h2 className="mb-2 text-sm font-semibold text-ink">Recently Updated Work Orders</h2>
       <Table>
         <THead>
           <tr>
@@ -73,7 +73,7 @@ export default async function MaintenanceOverviewPage() {
           {recentActivity.map((o) => (
             <tr key={o.id}>
               <Td>
-                <Link href={`/work-orders/${o.id}`} className="text-blue-700 hover:underline">
+                <Link href={`/work-orders/${o.id}`} className="text-indigo-700 hover:underline">
                   {o.workOrderNumber}
                 </Link>
               </Td>

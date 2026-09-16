@@ -27,7 +27,7 @@ export default async function ManHoursPage({
     return (
       <div>
         <PageHeader title="Man-Hours" />
-        <p className="text-sm text-slate-400">Select a project.</p>
+        <p className="text-sm text-ink-faint">Select a project.</p>
       </div>
     );
   }
@@ -48,14 +48,14 @@ export default async function ManHoursPage({
         description="Spec section 32 — normal, overtime, planned vs actual maintenance man-hours."
       />
 
-      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1 w-fit">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-line bg-surface p-1 w-fit">
         {PERIOD_TYPES.map((p) => (
           <Link
             key={p}
             href={`?period=${p}`}
             className={clsx(
               "rounded-md px-3 py-1.5 text-sm font-medium",
-              period === p ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              period === p ? "bg-indigo-600 text-white" : "text-ink-soft hover:bg-surface-subtle"
             )}
           >
             {PERIOD_LABELS[p]}
@@ -78,8 +78,8 @@ export default async function ManHoursPage({
         <StatCard label="Active Contractors" value={String(contractorCount)} />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="mb-2 text-sm font-semibold text-slate-700">6-Month Man-Hour Trend</h3>
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <h3 className="mb-2 text-sm font-semibold text-ink">6-Month Man-Hour Trend</h3>
         <ManHourTrendChart data={trend} />
       </div>
     </div>

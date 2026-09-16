@@ -64,7 +64,7 @@ export default async function HsePage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent Incidents</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Recent Incidents</h2>
           <Table>
             <THead>
               <tr>
@@ -81,7 +81,7 @@ export default async function HsePage() {
                   <Td>{formatDate(i.incidentDate)}</Td>
                   <Td>{i.incidentType.replace(/_/g, " ")}</Td>
                   <Td className="max-w-[180px] truncate">
-                    <Link href={`/hse/incidents/${i.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/hse/incidents/${i.id}`} className="text-indigo-700 hover:underline">
                       {i.description}
                     </Link>
                   </Td>
@@ -95,7 +95,7 @@ export default async function HsePage() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent Observations</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Recent Observations</h2>
           <Table>
             <THead>
               <tr>
@@ -112,7 +112,7 @@ export default async function HsePage() {
                   <Td>{formatDate(o.date)}</Td>
                   <Td>{o.category ?? "—"}</Td>
                   <Td className="max-w-[180px] truncate">
-                    <Link href={`/hse/observations/${o.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/hse/observations/${o.id}`} className="text-indigo-700 hover:underline">
                       {o.description}
                     </Link>
                   </Td>

@@ -92,7 +92,7 @@ export default async function FindingsPage({
               <Td>{f.equipment?.tagNumber ?? "—"}</Td>
               <Td>{f.category}</Td>
               <Td className="max-w-sm truncate">
-                <Link href={`/findings/${f.id}`} className="text-blue-700 hover:underline">
+                <Link href={`/findings/${f.id}`} className="text-indigo-700 hover:underline">
                   {f.description}
                 </Link>
               </Td>

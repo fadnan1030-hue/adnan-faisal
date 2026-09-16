@@ -15,17 +15,17 @@ export function StatCard({
   href?: string;
 }) {
   const toneClass = {
-    default: "text-slate-900",
-    good: "text-emerald-600",
-    warning: "text-amber-600",
-    critical: "text-red-600",
+    default: "text-ink-strong",
+    good: "text-emerald-600 dark:text-emerald-400",
+    warning: "text-amber-600 dark:text-amber-400",
+    critical: "text-red-600 dark:text-red-400",
   }[tone];
 
   const content = (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-sm transition-shadow hover:shadow-md">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{label}</p>
       <p className={clsx("mt-2 text-2xl font-semibold", toneClass)}>{value}</p>
-      {sublabel && <p className="mt-1 text-xs text-slate-500">{sublabel}</p>}
+      {sublabel && <p className="mt-1 text-xs text-ink-muted">{sublabel}</p>}
     </div>
   );
 

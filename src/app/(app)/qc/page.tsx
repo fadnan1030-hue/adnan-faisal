@@ -58,7 +58,7 @@ export default async function QcPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Recent Inspections</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Recent Inspections</h2>
           <Table>
             <THead>
               <tr>
@@ -85,7 +85,7 @@ export default async function QcPage() {
         </section>
 
         <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Non-Conformance Reports</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Non-Conformance Reports</h2>
           <Table>
             <THead>
               <tr>
@@ -100,7 +100,7 @@ export default async function QcPage() {
               {ncrs.map((n) => (
                 <tr key={n.id}>
                   <Td>
-                    <Link href={`/qc/ncrs/${n.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/qc/ncrs/${n.id}`} className="text-indigo-700 hover:underline">
                       {n.ncrNumber}
                     </Link>
                   </Td>

@@ -51,34 +51,34 @@ export default async function ActionDetailPage({ params }: { params: Promise<{ i
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <dl className="lg:col-span-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+        <dl className="lg:col-span-2 divide-y divide-line-soft rounded-xl border border-line bg-surface">
           {fields.map(([label, value]) => (
             <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-              <dt className="text-slate-500">{label}</dt>
-              <dd className="font-medium text-slate-800">{value}</dd>
+              <dt className="text-ink-muted">{label}</dt>
+              <dd className="font-medium text-ink-strong">{value}</dd>
             </div>
           ))}
         </dl>
 
         <aside className="space-y-4">
           {record.finding && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Source Finding</h3>
-              <Link href={`/findings/${record.finding.id}`} className="text-sm text-blue-700 hover:underline">
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Source Finding</h3>
+              <Link href={`/findings/${record.finding.id}`} className="text-sm text-indigo-700 hover:underline">
                 {record.finding.description}
               </Link>
             </div>
           )}
           {record.closureEvidence && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Closure Evidence</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{record.closureEvidence}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Closure Evidence</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{record.closureEvidence}</p>
             </div>
           )}
           {record.remarks && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Remarks</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{record.remarks}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Remarks</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{record.remarks}</p>
             </div>
           )}
         </aside>

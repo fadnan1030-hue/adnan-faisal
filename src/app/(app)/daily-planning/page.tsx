@@ -81,14 +81,14 @@ export default async function DailyPlanningPage({
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <nav className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
+        <nav className="flex gap-1 rounded-lg border border-line bg-surface p-1">
           {VIEWS.map((v) => (
             <Link
               key={v.key}
               href={`?view=${v.key}`}
               className={clsx(
                 "rounded-md px-3 py-1.5 text-sm font-medium",
-                view === v.key ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                view === v.key ? "bg-indigo-600 text-white" : "text-ink-soft hover:bg-surface-subtle"
               )}
             >
               {v.label}
@@ -126,7 +126,7 @@ export default async function DailyPlanningPage({
             <tr key={j.id}>
               <Td>{j.workCenter ?? "—"}</Td>
               <Td className="max-w-xs truncate">
-                <Link href={`/work-orders/${j.id}`} className="text-blue-700 hover:underline">
+                <Link href={`/work-orders/${j.id}`} className="text-indigo-700 hover:underline">
                   {j.operationShortText ?? j.workOrderNumber}
                 </Link>
               </Td>

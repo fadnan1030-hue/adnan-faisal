@@ -207,8 +207,8 @@ export async function EquipmentForm({
         </Field>
       </div>
 
-      <div className="flex items-center gap-4 rounded-md border border-slate-200 bg-slate-50 p-3">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+      <div className="flex items-center gap-4 rounded-md border border-line bg-surface-muted p-3">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" name="isSce" defaultChecked={equipment?.isSce} className="h-4 w-4" />
           Safety Critical Equipment (SCE)
         </label>
@@ -221,7 +221,7 @@ export async function EquipmentForm({
       </div>
 
       {equipment && (
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" name="active" defaultChecked={equipment.active} className="h-4 w-4" />
           Active
         </label>

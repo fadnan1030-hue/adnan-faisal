@@ -103,7 +103,7 @@ export default async function WorkOrdersPage({
           {orders.map((o) => (
             <tr key={o.id}>
               <Td>
-                <Link href={`/work-orders/${o.id}`} className="font-medium text-blue-700 hover:underline">
+                <Link href={`/work-orders/${o.id}`} className="font-medium text-indigo-700 hover:underline">
                   {o.workOrderNumber}
                 </Link>
               </Td>

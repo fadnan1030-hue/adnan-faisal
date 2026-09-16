@@ -97,7 +97,7 @@ export default async function EquipmentDetailPage({
         <MiniStat label="Open Actions" value={String(openActionCount)} tone={openActionCount > 0 ? "warning" : undefined} />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-line">
         <nav className="flex flex-wrap gap-1">
           {TABS.map((t) => (
             <Link
@@ -106,8 +106,8 @@ export default async function EquipmentDetailPage({
               className={clsx(
                 "rounded-t-md px-3 py-2 text-sm font-medium capitalize",
                 tab === t
-                  ? "border-b-2 border-blue-600 text-blue-700"
-                  : "text-slate-500 hover:text-slate-800"
+                  ? "border-b-2 border-indigo-600 text-indigo-700"
+                  : "text-ink-muted hover:text-ink-strong"
               )}
             >
               {t === "workorders" ? "Work Orders" : t}
@@ -133,9 +133,9 @@ export default async function EquipmentDetailPage({
 
 function MiniStat({ label, value, tone }: { label: string; value: string; tone?: "warning" }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-      <p className={clsx("mt-1 text-lg font-semibold", tone === "warning" ? "text-amber-600" : "text-slate-900")}>
+    <div className="rounded-lg border border-line bg-surface p-3">
+      <p className="text-[11px] uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className={clsx("mt-1 text-lg font-semibold", tone === "warning" ? "text-amber-600" : "text-ink-strong")}>
         {value}
       </p>
     </div>
@@ -167,18 +167,18 @@ async function OverviewTab({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+      <dl className="divide-y divide-line-soft rounded-xl border border-line bg-surface">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-            <dt className="text-slate-500">{label}</dt>
-            <dd className="font-medium text-slate-800">{value}</dd>
+            <dt className="text-ink-muted">{label}</dt>
+            <dd className="font-medium text-ink-strong">{value}</dd>
           </div>
         ))}
       </dl>
       {equipment.notes && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">Notes</h3>
-          <p className="whitespace-pre-wrap text-sm text-slate-600">{equipment.notes}</p>
+        <div className="rounded-xl border border-line bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-ink">Notes</h3>
+          <p className="whitespace-pre-wrap text-sm text-ink-soft">{equipment.notes}</p>
         </div>
       )}
     </div>
@@ -197,13 +197,13 @@ async function TimelineTab({ equipmentId, since }: { equipmentId: string; since?
   return (
     <ol className="space-y-3">
       {events.map((e) => (
-        <li key={e.id} className="rounded-lg border border-slate-200 bg-white p-3">
+        <li key={e.id} className="rounded-lg border border-line bg-surface p-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-800">{e.title}</span>
-            <span className="text-xs text-slate-400">{formatDate(e.eventDate)}</span>
+            <span className="text-sm font-medium text-ink-strong">{e.title}</span>
+            <span className="text-xs text-ink-faint">{formatDate(e.eventDate)}</span>
           </div>
-          {e.summary && <p className="mt-1 text-sm text-slate-500">{e.summary}</p>}
-          <span className="mt-1 inline-block text-[11px] uppercase tracking-wide text-slate-400">
+          {e.summary && <p className="mt-1 text-sm text-ink-muted">{e.summary}</p>}
+          <span className="mt-1 inline-block text-[11px] uppercase tracking-wide text-ink-faint">
             {e.eventType.replace(/_/g, " ")}
           </span>
         </li>
@@ -235,7 +235,7 @@ async function PmTab({ equipmentId, since }: { equipmentId: string; since?: Date
         {records.map((r) => (
           <tr key={r.id}>
             <Td>
-              <Link href={`/pm/${r.id}`} className="text-blue-700 hover:underline">
+              <Link href={`/pm/${r.id}`} className="text-indigo-700 hover:underline">
                 {formatDate(r.plannedDate)}
               </Link>
             </Td>
@@ -273,7 +273,7 @@ async function CmTab({ equipmentId, since }: { equipmentId: string; since?: Date
         {records.map((r) => (
           <tr key={r.id}>
             <Td>
-              <Link href={`/cm/${r.id}`} className="text-blue-700 hover:underline">
+              <Link href={`/cm/${r.id}`} className="text-indigo-700 hover:underline">
                 {formatDate(r.breakdownDate)}
               </Link>
             </Td>
@@ -347,7 +347,7 @@ async function FindingsTab({ equipmentId, since }: { equipmentId: string; since?
             <Td>{formatDate(r.date)}</Td>
             <Td>{r.category}</Td>
             <Td className="max-w-sm truncate">
-              <Link href={`/findings/${r.id}`} className="text-blue-700 hover:underline">
+              <Link href={`/findings/${r.id}`} className="text-indigo-700 hover:underline">
                 {r.description}
               </Link>
             </Td>
@@ -377,10 +377,10 @@ async function PhotosTab({ equipmentId }: { equipmentId: string }) {
           <img
             src={p.thumbnailPath ?? p.filePath}
             alt={p.caption ?? p.category}
-            className="aspect-square w-full rounded-lg border border-slate-200 object-cover"
+            className="aspect-square w-full rounded-lg border border-line object-cover"
           />
-          <p className="mt-1 truncate text-xs text-slate-500">{p.caption ?? p.category}</p>
-          <p className="text-[11px] text-slate-400">{formatDate(p.takenAt)}</p>
+          <p className="mt-1 truncate text-xs text-ink-muted">{p.caption ?? p.category}</p>
+          <p className="text-[11px] text-ink-faint">{formatDate(p.takenAt)}</p>
         </a>
       ))}
     </div>
@@ -408,7 +408,7 @@ async function DocumentsTab({ equipmentId }: { equipmentId: string }) {
         {documents.map((d) => (
           <tr key={d.id}>
             <Td>
-              <a href={d.filePath} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
+              <a href={d.filePath} target="_blank" rel="noreferrer" className="text-indigo-700 hover:underline">
                 {d.fileName}
               </a>
             </Td>
@@ -495,7 +495,7 @@ async function WorkOrdersTab({ equipmentId, since }: { equipmentId: string; sinc
         {orders.map((o) => (
           <tr key={o.id}>
             <Td>
-              <Link href={`/work-orders/${o.id}`} className="text-blue-700 hover:underline">
+              <Link href={`/work-orders/${o.id}`} className="text-indigo-700 hover:underline">
                 {o.workOrderNumber}
               </Link>
             </Td>
@@ -512,7 +512,7 @@ async function WorkOrdersTab({ equipmentId, since }: { equipmentId: string; sinc
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-line-strong bg-surface py-10 text-center text-sm text-ink-faint">
       {message}
     </div>
   );

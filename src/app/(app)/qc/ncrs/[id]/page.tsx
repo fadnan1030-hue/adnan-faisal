@@ -44,18 +44,18 @@ export default async function NcrDetailPage({ params }: { params: Promise<{ id: 
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <dl className="lg:col-span-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+        <dl className="lg:col-span-2 divide-y divide-line-soft rounded-xl border border-line bg-surface">
           {fields.map(([label, value]) => (
             <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-              <dt className="text-slate-500">{label}</dt>
-              <dd className="font-medium text-slate-800">{value}</dd>
+              <dt className="text-ink-muted">{label}</dt>
+              <dd className="font-medium text-ink-strong">{value}</dd>
             </div>
           ))}
         </dl>
 
         {canWrite && (
-          <aside className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold text-slate-700">Close Out</h3>
+          <aside className="rounded-xl border border-line bg-surface p-4">
+            <h3 className="mb-3 text-sm font-semibold text-ink">Close Out</h3>
             <form action={updateNcr} className="space-y-3">
               <input type="hidden" name="id" value={ncr.id} />
               <Field label="Evidence" htmlFor="evidence">

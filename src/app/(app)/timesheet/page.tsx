@@ -42,7 +42,7 @@ export default async function TimesheetPage({
 
       <form className="mb-4 flex items-end gap-2">
         <div>
-          <label className="mb-1 block text-xs font-medium text-slate-600">Date</label>
+          <label className="mb-1 block text-xs font-medium text-ink-soft">Date</label>
           <input type="date" name="date" defaultValue={date} className={inputClass} />
         </div>
         <button type="submit" className={buttonPrimaryClass}>
@@ -74,9 +74,9 @@ export default async function TimesheetPage({
                 const entry = existingByEmployee.get(e.id);
                 return (
                   <tr key={e.id}>
-                    <Td className="font-medium text-slate-900">
+                    <Td className="font-medium text-ink-strong">
                       <input type="hidden" name="employeeId" value={e.id} />
-                      {e.name} <span className="text-slate-400">({e.employeeNumber})</span>
+                      {e.name} <span className="text-ink-faint">({e.employeeNumber})</span>
                     </Td>
                     <Td>
                       {e.craft ?? "—"} {e.contractor ? `· ${e.contractor.name}` : ""}
@@ -144,7 +144,7 @@ export default async function TimesheetPage({
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white py-10 text-center text-sm text-slate-400">
+    <div className="rounded-xl border border-dashed border-line-strong bg-surface py-10 text-center text-sm text-ink-faint">
       {message}
     </div>
   );

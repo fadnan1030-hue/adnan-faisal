@@ -64,12 +64,12 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <section>
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">Details</h2>
-            <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+            <h2 className="mb-2 text-sm font-semibold text-ink">Details</h2>
+            <dl className="divide-y divide-line-soft rounded-xl border border-line bg-surface">
               {fields.map(([label, value]) => (
                 <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-                  <dt className="text-slate-500">{label}</dt>
-                  <dd className="font-medium text-slate-800">{value}</dd>
+                  <dt className="text-ink-muted">{label}</dt>
+                  <dd className="font-medium text-ink-strong">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -77,7 +77,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
           {workOrder.findings.length > 0 && (
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-slate-700">Findings</h2>
+              <h2 className="mb-2 text-sm font-semibold text-ink">Findings</h2>
               <Table>
                 <THead>
                   <tr>
@@ -93,7 +93,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
                       <Td>{formatDate(f.date)}</Td>
                       <Td>{f.category}</Td>
                       <Td className="max-w-xs truncate">
-                        <Link href={`/findings/${f.id}`} className="text-blue-700 hover:underline">
+                        <Link href={`/findings/${f.id}`} className="text-indigo-700 hover:underline">
                           {f.description}
                         </Link>
                       </Td>
@@ -107,7 +107,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
           {workOrder.actions.length > 0 && (
             <section>
-              <h2 className="mb-2 text-sm font-semibold text-slate-700">Actions</h2>
+              <h2 className="mb-2 text-sm font-semibold text-ink">Actions</h2>
               <Table>
                 <THead>
                   <tr>
@@ -131,34 +131,34 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">Equipment</h3>
+          <div className="rounded-xl border border-line bg-surface p-4">
+            <h3 className="mb-2 text-sm font-semibold text-ink">Equipment</h3>
             {workOrder.equipment ? (
               <Link
                 href={`/equipment/${workOrder.equipment.id}`}
-                className="text-sm font-medium text-blue-700 hover:underline"
+                className="text-sm font-medium text-indigo-700 hover:underline"
               >
                 {workOrder.equipment.tagNumber}
               </Link>
             ) : (
-              <p className="text-sm text-slate-400">{workOrder.equipmentSortField ?? "Not linked"}</p>
+              <p className="text-sm text-ink-faint">{workOrder.equipmentSortField ?? "Not linked"}</p>
             )}
           </div>
 
           {(workOrder.pmRecords.length > 0 || workOrder.cmRecords.length > 0) && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">Linked Maintenance Records</h3>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-2 text-sm font-semibold text-ink">Linked Maintenance Records</h3>
               <ul className="space-y-1 text-sm">
                 {workOrder.pmRecords.map((r) => (
                   <li key={r.id}>
-                    <Link href={`/pm/${r.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/pm/${r.id}`} className="text-indigo-700 hover:underline">
                       PM — {formatDate(r.plannedDate)}
                     </Link>
                   </li>
                 ))}
                 {workOrder.cmRecords.map((r) => (
                   <li key={r.id}>
-                    <Link href={`/cm/${r.id}`} className="text-blue-700 hover:underline">
+                    <Link href={`/cm/${r.id}`} className="text-indigo-700 hover:underline">
                       CM — {formatDate(r.breakdownDate)}
                     </Link>
                   </li>
@@ -168,9 +168,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
           )}
 
           {workOrder.remarks && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">Remarks</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{workOrder.remarks}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-2 text-sm font-semibold text-ink">Remarks</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{workOrder.remarks}</p>
             </div>
           )}
         </aside>

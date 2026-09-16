@@ -55,7 +55,7 @@ export default async function InspectionsPage() {
               <Td>{formatDate(i.date)}</Td>
               <Td>
                 {i.equipment ? (
-                  <Link href={`/equipment/${i.equipment.id}`} className="text-blue-700 hover:underline">
+                  <Link href={`/equipment/${i.equipment.id}`} className="text-indigo-700 hover:underline">
                     {i.equipment.tagNumber}
                   </Link>
                 ) : (

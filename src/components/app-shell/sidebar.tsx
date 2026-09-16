@@ -22,13 +22,13 @@ export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
 
   return (
-    <nav className="no-print flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white py-4">
+    <nav className="no-print flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-line bg-surface py-4">
       <div className="px-4 pb-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
             M
           </span>
-          <span className="text-sm font-semibold leading-tight text-slate-900">
+          <span className="text-sm font-semibold leading-tight text-ink-strong">
             Maintenance &amp; KPI MS
           </span>
         </Link>
@@ -42,7 +42,7 @@ export function Sidebar({ role }: { role: Role }) {
 
         return (
           <div key={group.title} className="mb-3 px-3">
-            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {group.title}
             </p>
             <ul className="space-y-0.5">
@@ -56,8 +56,8 @@ export function Sidebar({ role }: { role: Role }) {
                       className={clsx(
                         "block rounded-md px-2 py-1.5 text-sm transition-colors",
                         active
-                          ? "bg-blue-50 font-medium text-blue-700"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                          ? "bg-indigo-50 font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                          : "text-ink-soft hover:bg-surface-subtle hover:text-ink-strong"
                       )}
                     >
                       {item.label}

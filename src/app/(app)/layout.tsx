@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const project = await getCurrentProject();
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       <Sidebar role={session.user.role} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header

@@ -61,31 +61,31 @@ export default async function PmDetailPage({ params }: { params: Promise<{ id: s
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <dl className="lg:col-span-2 divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
+        <dl className="lg:col-span-2 divide-y divide-line-soft rounded-xl border border-line bg-surface">
           {fields.map(([label, value]) => (
             <div key={label} className="flex justify-between px-4 py-2.5 text-sm">
-              <dt className="text-slate-500">{label}</dt>
-              <dd className="font-medium text-slate-800">{value}</dd>
+              <dt className="text-ink-muted">{label}</dt>
+              <dd className="font-medium text-ink-strong">{value}</dd>
             </div>
           ))}
         </dl>
 
         <aside className="space-y-4">
           {record.findingsText && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Findings (free text)</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{record.findingsText}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Findings (free text)</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{record.findingsText}</p>
             </div>
           )}
           {record.correctiveAction && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-1 text-sm font-semibold text-slate-700">Corrective Action</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{record.correctiveAction}</p>
+            <div className="rounded-xl border border-line bg-surface p-4">
+              <h3 className="mb-1 text-sm font-semibold text-ink">Corrective Action</h3>
+              <p className="text-sm text-ink-soft whitespace-pre-wrap">{record.correctiveAction}</p>
             </div>
           )}
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-1 text-sm font-semibold text-slate-700">Linked Records</h3>
-            <p className="text-sm text-slate-500">
+          <div className="rounded-xl border border-line bg-surface p-4">
+            <h3 className="mb-1 text-sm font-semibold text-ink">Linked Records</h3>
+            <p className="text-sm text-ink-muted">
               {record.findings.length} findings · {record.photos.length} photos · {record.actions.length} actions
             </p>
           </div>

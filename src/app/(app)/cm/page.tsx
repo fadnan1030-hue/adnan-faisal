@@ -71,7 +71,7 @@ export default async function CmPage({ searchParams }: { searchParams: Promise<{
           {records.map((r) => (
             <tr key={r.id}>
               <Td>
-                <Link href={`/cm/${r.id}`} className="font-medium text-blue-700 hover:underline">
+                <Link href={`/cm/${r.id}`} className="font-medium text-indigo-700 hover:underline">
                   {formatDate(r.breakdownDate)}
                 </Link>
               </Td>

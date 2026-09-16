@@ -118,7 +118,7 @@ export default async function ActionsPage({
           {actions.map((a) => (
             <tr key={a.id}>
               <Td className="max-w-sm truncate">
-                <Link href={`/actions/${a.id}`} className="text-blue-700 hover:underline">
+                <Link href={`/actions/${a.id}`} className="text-indigo-700 hover:underline">
                   {a.description}
                 </Link>
               </Td>

@@ -89,7 +89,7 @@ export default async function AuditTrailPage({
               <Td>{formatDateTime(l.createdAt)}</Td>
               <Td>{l.actor?.name ?? "System"}</Td>
               <Td>
-                {l.entityType.replace(/_/g, " ")} <span className="text-slate-400">({l.entityId.slice(0, 8)})</span>
+                {l.entityType.replace(/_/g, " ")} <span className="text-ink-faint">({l.entityId.slice(0, 8)})</span>
               </Td>
               <Td>
                 <StatusBadge status={l.action} />

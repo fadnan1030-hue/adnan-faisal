@@ -16,9 +16,9 @@ export default async function ReportsPage() {
       <PageHeader title="Reports" description="Spec sections 38-39 — printable management reports (use your browser's Print → Save as PDF)." />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {REPORTS.map((r) => (
-          <Link key={r.href} href={r.href} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md">
-            <h3 className="text-sm font-semibold text-slate-900">{r.label}</h3>
-            <p className="mt-1 text-xs text-slate-500">{r.description}</p>
+          <Link key={r.href} href={r.href} className="rounded-xl border border-line bg-surface p-4 shadow-sm hover:shadow-md">
+            <h3 className="text-sm font-semibold text-ink-strong">{r.label}</h3>
+            <p className="mt-1 text-xs text-ink-muted">{r.description}</p>
           </Link>
         ))}
       </div>
