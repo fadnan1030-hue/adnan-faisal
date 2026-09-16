@@ -7,6 +7,7 @@ import { requireModuleAccess } from "@/lib/auth-helpers";
 import { writeAuditLog } from "@/lib/audit";
 import { getCurrentProjectId } from "@/lib/current-project";
 import { redirectWithError, str, optStr, optDate, checkbox } from "@/lib/action-helpers";
+import { ensureSceRecord } from "@/lib/sce";
 import type { Criticality, EquipmentStatus } from "@prisma/client";
 
 export async function createEquipment(formData: FormData) {
@@ -57,6 +58,8 @@ export async function createEquipment(formData: FormData) {
     },
   });
 
+  await ensureSceRecord(equipment);
+
   await writeAuditLog({
     projectId,
     entityType: "EQUIPMENT",
@@ -104,6 +107,8 @@ export async function updateEquipment(formData: FormData) {
       notes: optStr(formData, "notes"),
     },
   });
+
+  await ensureSceRecord(equipment);
 
   await writeAuditLog({
     projectId: equipment.projectId,
