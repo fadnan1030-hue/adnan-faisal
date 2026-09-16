@@ -308,6 +308,9 @@ async function main() {
       },
     });
 
+    const pmAlreadySeeded = await prisma.pmRecord.findFirst({ where: { workOrderId: wo.id } });
+    if (pmAlreadySeeded) continue;
+
     await prisma.pmRecord.create({
       data: {
         projectId: project.id,
@@ -374,6 +377,9 @@ async function main() {
         status: c.status,
       },
     });
+
+    const cmAlreadySeeded = await prisma.cmRecord.findFirst({ where: { workOrderId: wo.id } });
+    if (cmAlreadySeeded) continue;
 
     await prisma.cmRecord.create({
       data: {
