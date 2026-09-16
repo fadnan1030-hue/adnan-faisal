@@ -1,0 +1,1180 @@
+// Integrated Maintenance, KPI, HSE, QC & Equipment History Management System
+// -----------------------------------------------------------------------------
+// Design notes (see README.md "Architecture" section for the full rationale):
+//  - Equipment tag number is the central relational key: PM, CM, inspections,
+//    findings, photos, actions and work orders all carry equipmentId so a
+//    single equipment record reconstructs its full history.
+//  - Configurable lookup lists (areas, units, disciplines, work centers,
+//    finding categories, priorities, HSE/QC/Planning KPI categories, etc.)
+//    are modeled as a single ConfigOption table keyed by `category`, so
+//    Administration -> Configuration can add/edit/disable values without
+//    schema changes (spec section 54).
+//  - hse_kpis / qc_kpis / planning_kpis (spec section 69) are consolidated
+//    into KpiDefinition + KpiResult, tagged by `module`, per the centralized
+//    KPI engine requirement in spec section 55 (never hard-code KPI math
+//    into individual screens).
+//  - man_hours (spec section 69/32) is derived from Timesheet rows rather
+//    than duplicated as a separate table.
+//  - Action, Photo and Document use a polymorphic sourceModule/sourceId
+//    pair alongside a direct equipmentId FK, so every finding stays
+//    traceable both forward and backward (spec section 85) while also being
+//    attachable to HSE/QC/SCE records that aren't equipment-specific.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MAINTENANCE_MANAGER
+  MAINTENANCE_ENGINEER
+  SUPERVISOR
+  TECHNICIAN
+  HSE_USER
+  QC_USER
+  MANAGEMENT
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CLOSED
+}
+
+enum Criticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  STANDBY
+  UNDER_MAINTENANCE
+  OUT_OF_SERVICE
+  DECOMMISSIONED
+}
+
+enum WorkOrderType {
+  PM
+  CM
+}
+
+// Unified maintenance workflow status (spec section 63)
+enum MaintenanceStatus {
+  PLANNED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  PARTIALLY_COMPLETED
+  RESCHEDULED
+  CANCELLED
+  OVERDUE
+  VERIFIED
+  CLOSED
+}
+
+enum FindingSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Shared workflow for Finding / Action / NCR / Observation (spec section 63)
+enum TrackerStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  PENDING_VERIFICATION
+  CLOSED
+  OVERDUE
+  CANCELLED
+}
+
+enum SceStatus {
+  DUE
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  VERIFIED
+}
+
+enum PhotoCategory {
+  BEFORE
+  DURING
+  DEFECT
+  FINDING
+  REPAIR
+  AFTER
+  NAMEPLATE
+  GENERAL
+  OTHER
+}
+
+// Polymorphic anchor for Action / Photo / Document / AuditLog
+enum SourceModule {
+  PROJECT
+  EQUIPMENT
+  WORK_ORDER
+  PM
+  CM
+  DAILY_PLANNING
+  INSPECTION
+  FINDING
+  ACTION
+  SCE
+  HSE_INCIDENT
+  HSE_OBSERVATION
+  QC_INSPECTION
+  NCR
+  EMPLOYEE
+  TIMESHEET
+  KPI
+  USER
+  DOCUMENT
+}
+
+enum KpiModule {
+  MAINTENANCE
+  SCE
+  HSE
+  QC
+  PLANNING
+}
+
+enum KpiFormulaType {
+  COMPLETION_PCT
+  COMPLIANCE_PCT
+  VARIANCE
+  VARIANCE_PCT
+  WEIGHTED_SCORE
+  CUSTOM
+}
+
+enum ReportingFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  SICK
+  OFF
+  TRAINING
+  HOLIDAY
+  OTHER
+}
+
+enum IncidentType {
+  LTI
+  TRIF_RECORDABLE
+  FIRST_AID
+  MEDICAL_TREATMENT
+  NEAR_MISS
+  OTHER
+}
+
+enum InspectionType {
+  QC
+  GENERAL
+  SCE
+  HSE
+}
+
+enum InspectionResult {
+  PASS
+  FAIL
+  CONDITIONAL
+  PENDING
+}
+
+enum NcrSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum DocumentEntity {
+  EQUIPMENT
+  WORK_ORDER
+  PM
+  CM
+  FINDING
+  ACTION
+  SCE
+  HSE_INCIDENT
+  HSE_OBSERVATION
+  QC_INSPECTION
+  NCR
+  PROJECT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ARCHIVE
+  IMPORT
+  EXPORT
+  STATUS_CHANGE
+  APPROVAL
+  CLOSURE
+  LOGIN
+  PERMISSION_CHANGE
+}
+
+enum NotificationCategory {
+  JOB_ASSIGNED
+  PM_OVERDUE
+  CM_OVERDUE
+  ACTION_OVERDUE
+  SCE_DUE
+  SCE_OVERDUE
+  QC_INSPECTION_DUE
+  HSE_ACTION_OVERDUE
+  APPROVAL_PENDING
+  FINDING_ASSIGNED
+  OTHER
+}
+
+enum ImportStatus {
+  UPLOADED
+  MAPPING
+  VALIDATED
+  IMPORTING
+  COMPLETED
+  FAILED
+}
+
+enum DuplicateStrategy {
+  SKIP
+  UPDATE
+  CREATE_NEW
+  ASK
+}
+
+// ---------------------------------------------------------------------------
+// Identity, projects, configuration
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(TECHNICIAN)
+  active       Boolean   @default(true)
+  employee     Employee?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  projectAccess    ProjectMember[]
+  sharedDashboards SharedDashboardAccess[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]              @relation("AuditActor")
+
+  @@index([role])
+}
+
+model Project {
+  id                    String        @id @default(cuid())
+  code                  String        @unique
+  name                  String
+  client                String?
+  contractor            String?
+  contractNumber        String?
+  location              String?
+  projectManager        String?
+  status                ProjectStatus @default(ACTIVE)
+  startDate             DateTime?
+  plannedCompletionDate DateTime?
+  actualCompletionDate  DateTime?
+  ltiFreeStartDate      DateTime?
+  currentPeriodLabel    String?
+
+  // Annexure-3 contract KPI formula inputs (spec: Schedule 55% + Quality 20%
+  // + HSSE 25%) - a roster-based man-hours baseline and daily report
+  // numbering, both constant-per-project rather than re-entered daily.
+  availableMhrsPerWeek Decimal? @db.Decimal(8, 2)
+  rosterDirectQty      Int?
+  rosterIndirectQty    Int?
+  rosterStandardHours  Decimal? @db.Decimal(5, 2)
+  reportNoBaseline     Int?
+  reportNoBaseDate     DateTime?
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  members          ProjectMember[]
+  equipment        Equipment[]
+  workOrders       WorkOrder[]
+  pmRecords        PmRecord[]
+  cmRecords        CmRecord[]
+  inspections      Inspection[]
+  findings         Finding[]
+  actions          Action[]
+  sceRecords       SceRecord[]
+  hseIncidents     HseIncident[]
+  hseObservations  HseObservation[]
+  qcInspections    QcInspection[]
+  ncrs             Ncr[]
+  employees        Employee[]
+  contractors      Contractor[]
+  timesheets       Timesheet[]
+  configOptions    ConfigOption[]
+  kpiDefinitions   KpiDefinition[]
+  kpiWeights       KpiWeight[]
+  kpiResults       KpiResult[]
+  documents        Document[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  importJobs       ImportJob[]
+  dashboardConfigs DashboardConfig[]
+  photos           Photo[]
+  kpiDailyEntries  KpiDailyEntry[]
+
+  @@index([status])
+}
+
+// Daily Quality/HSSE inputs and emergency man-hours feeding the Annexure-3
+// weighted KPI score (spec: Schedule Compliance is derived live from
+// WorkOrder/PmRecord/CmRecord instead, so it isn't stored here). One row
+// per project per calendar date.
+model KpiDailyEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date      DateTime
+
+  ltiOccurred         Boolean  @default(false)
+  directEmergencyMH   Decimal? @db.Decimal(8, 2)
+  indirectEmergencyMH Decimal? @db.Decimal(8, 2)
+
+  zeroLeakage Boolean?
+  noRework    Boolean?
+
+  trif               Decimal? @db.Decimal(6, 2)
+  ptwPct             Decimal? @db.Decimal(5, 2)
+  lsrViolations      Int?
+  otherLsrPct        Decimal? @db.Decimal(5, 2)
+  lsrCloseoutPct     Decimal? @db.Decimal(5, 2)
+  safetyObsPct       Decimal? @db.Decimal(5, 2)
+  leadershipWalkPct  Decimal? @db.Decimal(5, 2)
+  vehicleIncidents   Int?
+  securityViolations Int?
+  spills             Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, date])
+  @@index([projectId, date])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+// Generic configurable lookup list: areas, units, disciplines, work centers,
+// contractors (label only - full contractor records live in Contractor),
+// priorities, criticality labels, finding categories, PM frequencies,
+// status values, notification rules, etc. `category` groups the list.
+model ConfigOption {
+  id        String   @id @default(cuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category  String // e.g. AREA, UNIT, DISCIPLINE, WORK_CENTER, FINDING_CATEGORY, PM_FREQUENCY
+  code      String
+  label     String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, category, code])
+  @@index([category, active])
+}
+
+model Contractor {
+  id           String  @id @default(cuid())
+  projectId    String
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  active       Boolean @default(true)
+
+  employees  Employee[]
+  workOrders WorkOrder[]
+
+  @@unique([projectId, name])
+}
+
+model Employee {
+  id             String      @id @default(cuid())
+  projectId      String
+  project        Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeNumber String
+  name           String
+  craft          String?
+  discipline     String?
+  contractorId   String?
+  contractor     Contractor? @relation(fields: [contractorId], references: [id])
+  userId         String?     @unique
+  user           User?       @relation(fields: [userId], references: [id])
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+
+  timesheets Timesheet[]
+
+  @@unique([projectId, employeeNumber])
+  @@index([projectId, active])
+}
+
+// ---------------------------------------------------------------------------
+// Equipment master + history
+// ---------------------------------------------------------------------------
+
+model Equipment {
+  id                  String          @id @default(cuid())
+  projectId           String
+  project             Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tagNumber           String
+  description         String
+  equipmentType       String?
+  equipmentCategory   String?
+  area                String?
+  unit                String?
+  location            String?
+  system              String?
+  subsystem           String?
+  manufacturer        String?
+  model               String?
+  serialNumber        String?
+  criticality         Criticality     @default(MEDIUM)
+  abcIndicator        String?
+  isSce               Boolean         @default(false)
+  sceCategory         String?
+  discipline          String?
+  responsibleTeam     String?
+  maintenanceStrategy String?
+  pmFrequency         String?
+  installationDate    DateTime?
+  commissioningDate   DateTime?
+  operationalStatus   EquipmentStatus @default(OPERATIONAL)
+  active              Boolean         @default(true)
+  notes               String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  workOrders    WorkOrder[]
+  pmRecords     PmRecord[]
+  cmRecords     CmRecord[]
+  inspections   Inspection[]
+  findings      Finding[]
+  photos        Photo[]
+  actions       Action[]
+  sceRecord     SceRecord?
+  historyEvents EquipmentHistoryEvent[]
+  documents     Document[]
+
+  @@unique([projectId, tagNumber])
+  @@index([projectId, active])
+  @@index([tagNumber])
+  @@index([isSce])
+}
+
+// Denormalized append-only timeline for fast "equipment history" rendering.
+// Populated alongside PM/CM/Inspection/Finding/Action writes so the
+// equipment history tab never has to fan out across six tables just to
+// render a timeline (spec sections 18, 60).
+model EquipmentHistoryEvent {
+  id          String       @id @default(cuid())
+  equipmentId String
+  equipment   Equipment    @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  eventDate   DateTime
+  eventType   SourceModule
+  sourceId    String
+  title       String
+  summary     String?
+  createdAt   DateTime     @default(now())
+
+  @@index([equipmentId, eventDate])
+}
+
+// ---------------------------------------------------------------------------
+// Work orders, PM, CM, inspections
+// ---------------------------------------------------------------------------
+
+model WorkOrder {
+  id                   String            @id @default(cuid())
+  projectId            String
+  project              Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workOrderNumber      String
+  workCenter           String?
+  operationShortText   String?
+  operationDescription String?
+  scope                String?
+  equipmentId          String?
+  equipment            Equipment?        @relation(fields: [equipmentId], references: [id])
+  equipmentSortField   String?
+  location             String?
+  abcIndicator         String?
+  priority             Priority          @default(MEDIUM)
+  type                 WorkOrderType     @default(PM)
+  plannedStartDate     DateTime?
+  plannedFinishDate    DateTime?
+  earliestFinishDate   DateTime?
+  actualStartDate      DateTime?
+  actualFinishDate     DateTime?
+  plannedHours         Decimal?          @db.Decimal(10, 2)
+  actualHours          Decimal?          @db.Decimal(10, 2)
+  responsibleParty     String?
+  contractorId         String?
+  contractor           Contractor?       @relation(fields: [contractorId], references: [id])
+  status               MaintenanceStatus @default(PLANNED)
+  remarks              String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  pmRecords PmRecord[]
+  cmRecords CmRecord[]
+  findings  Finding[]
+  actions   Action[]
+  photos    Photo[]
+  documents Document[]
+
+  @@unique([projectId, workOrderNumber])
+  @@index([projectId, status])
+  @@index([equipmentId])
+  @@index([plannedFinishDate])
+  @@index([type, status])
+}
+
+model PmRecord {
+  id                    String            @id @default(cuid())
+  projectId             String
+  project               Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workOrderId           String?
+  workOrder             WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  equipmentId           String
+  equipment             Equipment         @relation(fields: [equipmentId], references: [id])
+  pmType                String?
+  pmFrequency           String?
+  plannedDate           DateTime
+  plannedStart          DateTime?
+  plannedFinish         DateTime?
+  actualStart           DateTime?
+  actualFinish          DateTime?
+  plannedHours          Decimal?          @db.Decimal(10, 2)
+  actualHours           Decimal?          @db.Decimal(10, 2)
+  responsibleDiscipline String?
+  workCenter            String?
+  location              String?
+  priority              Priority          @default(MEDIUM)
+  criticality           Criticality       @default(MEDIUM)
+  technicianId          String?
+  supervisorId          String?
+  status                MaintenanceStatus @default(PLANNED)
+  findingsText          String?
+  correctiveAction      String?
+  remarks               String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  findings  Finding[]
+  actions   Action[]
+  photos    Photo[]
+  documents Document[]
+
+  @@index([projectId, status])
+  @@index([equipmentId])
+  @@index([plannedDate])
+}
+
+model CmRecord {
+  id                 String            @id @default(cuid())
+  projectId          String
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workOrderId        String?
+  workOrder          WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  equipmentId        String
+  equipment          Equipment         @relation(fields: [equipmentId], references: [id])
+  breakdownDate      DateTime
+  notificationDate   DateTime?
+  priority           Priority          @default(MEDIUM)
+  failureDescription String?
+  problemStatement   String?
+  finding            String?
+  failureMode        String?
+  rootCause          String?
+  correctiveAction   String?
+  spareParts         String?
+  plannedHours       Decimal?          @db.Decimal(10, 2)
+  actualHours        Decimal?          @db.Decimal(10, 2)
+  technicianId       String?
+  supervisorId       String?
+  actualStart        DateTime?
+  actualFinish       DateTime?
+  status             MaintenanceStatus @default(PLANNED)
+  downtimeHours      Decimal?          @db.Decimal(10, 2)
+  productionImpact   String?
+  recommendation     String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  findings  Finding[]
+  actions   Action[]
+  photos    Photo[]
+  documents Document[]
+
+  @@index([projectId, status])
+  @@index([equipmentId])
+  @@index([breakdownDate])
+}
+
+model Inspection {
+  id          String           @id @default(cuid())
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  equipmentId String?
+  equipment   Equipment?       @relation(fields: [equipmentId], references: [id])
+  type        InspectionType   @default(GENERAL)
+  date        DateTime
+  inspector   String?
+  result      InspectionResult @default(PENDING)
+  remarks     String?
+  createdAt   DateTime         @default(now())
+
+  findings  Finding[]
+  photos    Photo[]
+  documents Document[]
+
+  @@index([projectId, type])
+  @@index([equipmentId])
+}
+
+// ---------------------------------------------------------------------------
+// Findings, photos, actions - the traceability backbone (spec section 85)
+// ---------------------------------------------------------------------------
+
+model Finding {
+  id                String          @id @default(cuid())
+  projectId         String
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  equipmentId       String?
+  equipment         Equipment?      @relation(fields: [equipmentId], references: [id])
+  workOrderId       String?
+  workOrder         WorkOrder?      @relation(fields: [workOrderId], references: [id])
+  pmRecordId        String?
+  pmRecord          PmRecord?       @relation(fields: [pmRecordId], references: [id])
+  cmRecordId        String?
+  cmRecord          CmRecord?       @relation(fields: [cmRecordId], references: [id])
+  inspectionId      String?
+  inspection        Inspection?     @relation(fields: [inspectionId], references: [id])
+  date              DateTime
+  category          String
+  description       String
+  severity          FindingSeverity @default(MEDIUM)
+  riskLevel         RiskLevel       @default(MEDIUM)
+  immediateAction   String?
+  recommendedAction String?
+  responsiblePerson String?
+  targetDate        DateTime?
+  status            TrackerStatus   @default(OPEN)
+  closureDate       DateTime?
+  verifiedBy        String?
+  verificationDate  DateTime?
+  remarks           String?
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  photos    Photo[]
+  actions   Action[]
+  documents Document[]
+
+  @@index([projectId, status])
+  @@index([equipmentId])
+  @@index([category])
+  @@index([targetDate])
+}
+
+model Photo {
+  id            String        @id @default(cuid())
+  projectId     String
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  equipmentId   String?
+  equipment     Equipment?    @relation(fields: [equipmentId], references: [id])
+  findingId     String?
+  finding       Finding?      @relation(fields: [findingId], references: [id])
+  workOrderId   String?
+  workOrder     WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  pmRecordId    String?
+  pmRecord      PmRecord?     @relation(fields: [pmRecordId], references: [id])
+  cmRecordId    String?
+  cmRecord      CmRecord?     @relation(fields: [cmRecordId], references: [id])
+  inspectionId  String?
+  inspection    Inspection?   @relation(fields: [inspectionId], references: [id])
+  category      PhotoCategory @default(GENERAL)
+  caption       String?
+  filePath      String
+  thumbnailPath String?
+  fileSize      Int?
+  uploadedById  String?
+  takenAt       DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  @@index([equipmentId])
+  @@index([findingId])
+  @@index([category])
+}
+
+model Action {
+  id                String          @id @default(cuid())
+  projectId         String
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceModule      SourceModule
+  sourceId          String?
+  equipmentId       String?
+  equipment         Equipment?      @relation(fields: [equipmentId], references: [id])
+  findingId         String?
+  finding           Finding?        @relation(fields: [findingId], references: [id])
+  workOrderId       String?
+  workOrder         WorkOrder?      @relation(fields: [workOrderId], references: [id])
+  pmRecordId        String?
+  pmRecord          PmRecord?       @relation(fields: [pmRecordId], references: [id])
+  cmRecordId        String?
+  cmRecord          CmRecord?       @relation(fields: [cmRecordId], references: [id])
+  description       String
+  responsiblePerson String?
+  priority          Priority        @default(MEDIUM)
+  createdDate       DateTime        @default(now())
+  targetDate        DateTime?
+  status            TrackerStatus   @default(OPEN)
+  closureDate       DateTime?
+  closureEvidence   String?
+  verifiedBy        String?
+  verificationDate  DateTime?
+  remarks           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  hseIncident       HseIncident?    @relation(fields: [hseIncidentId], references: [id])
+  hseIncidentId     String?
+  hseObservation    HseObservation? @relation(fields: [hseObservationId], references: [id])
+  hseObservationId  String?
+  qcInspection      QcInspection?   @relation(fields: [qcInspectionId], references: [id])
+  qcInspectionId    String?
+  ncr               Ncr?            @relation(fields: [ncrId], references: [id])
+  ncrId             String?
+
+  @@index([projectId, status])
+  @@index([equipmentId])
+  @@index([targetDate])
+  @@index([sourceModule, sourceId])
+}
+
+// ---------------------------------------------------------------------------
+// SCE - Safety Critical Equipment
+// ---------------------------------------------------------------------------
+
+model SceRecord {
+  id                    String    @id @default(cuid())
+  projectId             String
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  equipmentId           String    @unique
+  equipment             Equipment @relation(fields: [equipmentId], references: [id])
+  sceCategory           String
+  criticalFunction      String?
+  inspectionRequirement String?
+  testFrequency         String?
+  lastTestDate          DateTime?
+  nextDueDate           DateTime?
+  status                SceStatus @default(DUE)
+  complianceStatus      String?
+  responsiblePerson     String?
+  closureStatus         String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  inspections SceInspection[]
+
+  @@index([projectId, status])
+  @@index([nextDueDate])
+}
+
+model SceInspection {
+  id          String           @id @default(cuid())
+  sceRecordId String
+  sceRecord   SceRecord        @relation(fields: [sceRecordId], references: [id], onDelete: Cascade)
+  date        DateTime
+  result      InspectionResult @default(PENDING)
+  performedBy String?
+  finding     String?
+  remarks     String?
+  createdAt   DateTime         @default(now())
+
+  @@index([sceRecordId, date])
+}
+
+// ---------------------------------------------------------------------------
+// HSE
+// ---------------------------------------------------------------------------
+
+model HseIncident {
+  id                  String        @id @default(cuid())
+  projectId           String
+  project             Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  incidentDate        DateTime
+  incidentType        IncidentType
+  description         String
+  location            String?
+  personnelAffected   String?
+  investigationStatus TrackerStatus @default(OPEN)
+  rootCause           String?
+  correctiveActions   String?
+  closureDate         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  actions   Action[]
+  documents Document[]
+
+  @@index([projectId, incidentDate])
+  @@index([incidentType])
+}
+
+model HseObservation {
+  id                String        @id @default(cuid())
+  projectId         String
+  project           Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date              DateTime
+  observer          String?
+  area              String?
+  equipmentTag      String?
+  category          String?
+  isPositive        Boolean       @default(true)
+  description       String
+  immediateAction   String?
+  correctiveAction  String?
+  responsiblePerson String?
+  targetDate        DateTime?
+  status            TrackerStatus @default(OPEN)
+  closureDate       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  actions   Action[]
+  documents Document[]
+
+  @@index([projectId, status])
+  @@index([date])
+}
+
+// ---------------------------------------------------------------------------
+// QC / QA
+// ---------------------------------------------------------------------------
+
+model QcInspection {
+  id             String           @id @default(cuid())
+  projectId      String
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date           DateTime
+  equipmentTag   String?
+  workOrderId    String?
+  inspectionType String?
+  inspector      String?
+  result         InspectionResult @default(PENDING)
+  remarks        String?
+  createdAt      DateTime         @default(now())
+
+  actions   Action[]
+  documents Document[]
+
+  @@index([projectId, date])
+}
+
+model Ncr {
+  id                String        @id @default(cuid())
+  projectId         String
+  project           Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  ncrNumber         String
+  date              DateTime
+  equipmentTag      String?
+  description       String
+  category          String?
+  severity          NcrSeverity   @default(MINOR)
+  responsiblePerson String?
+  targetDate        DateTime?
+  status            TrackerStatus @default(OPEN)
+  closureDate       DateTime?
+  evidence          String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  actions   Action[]
+  documents Document[]
+
+  @@unique([projectId, ncrNumber])
+  @@index([projectId, status])
+}
+
+// ---------------------------------------------------------------------------
+// KPI engine (spec sections 9, 23-26, 55-57)
+// ---------------------------------------------------------------------------
+
+model KpiDefinition {
+  id                 String             @id @default(cuid())
+  projectId          String?
+  project            Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  module             KpiModule
+  name               String
+  description        String?
+  formulaType        KpiFormulaType
+  target             Decimal?           @db.Decimal(10, 2)
+  unit               String?
+  weight             Decimal?           @db.Decimal(5, 2)
+  thresholds         Json?
+  reportingFrequency ReportingFrequency @default(MONTHLY)
+  active             Boolean            @default(true)
+  sortOrder          Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  results KpiResult[]
+
+  @@index([projectId, module, active])
+}
+
+// Overall category weighting (HSE / QC / Planning / Maintenance), spec
+// section 25. Application layer validates that active weights for a
+// project sum to 100.
+model KpiWeight {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  module    KpiModule
+  weightPct Decimal   @db.Decimal(5, 2)
+  active    Boolean   @default(true)
+  updatedAt DateTime  @updatedAt
+
+  @@unique([projectId, module])
+}
+
+// Point-in-time snapshot for historical trend charts. The live dashboard
+// computes KPIs on demand from transactional data (spec section 84); this
+// table only caches periodic results so multi-year trend charts don't need
+// to recompute every period on every page load.
+model KpiResult {
+  id              String             @id @default(cuid())
+  projectId       String
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kpiDefinitionId String
+  kpiDefinition   KpiDefinition      @relation(fields: [kpiDefinitionId], references: [id], onDelete: Cascade)
+  periodType      ReportingFrequency
+  periodStart     DateTime
+  periodEnd       DateTime
+  value           Decimal?           @db.Decimal(10, 4)
+  achievedScore   Decimal?           @db.Decimal(10, 4)
+  remarks         String?
+  computedAt      DateTime           @default(now())
+
+  @@unique([kpiDefinitionId, periodType, periodStart])
+  @@index([projectId, periodType, periodStart])
+}
+
+// ---------------------------------------------------------------------------
+// Timesheet / man-hours / LTI-free counter (spec sections 30-32)
+// ---------------------------------------------------------------------------
+
+model Timesheet {
+  id            String           @id @default(cuid())
+  projectId     String
+  project       Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee         @relation(fields: [employeeId], references: [id])
+  date          DateTime
+  status        AttendanceStatus @default(PRESENT)
+  normalHours   Decimal          @default(0) @db.Decimal(6, 2)
+  overtimeHours Decimal          @default(0) @db.Decimal(6, 2)
+  remarks       String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([projectId, date])
+}
+
+// ---------------------------------------------------------------------------
+// Documents, notifications, audit trail, import wizard, dashboard sharing
+// ---------------------------------------------------------------------------
+
+model Document {
+  id           String         @id @default(cuid())
+  projectId    String
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  entityType   DocumentEntity
+  fileName     String
+  fileType     String
+  fileSize     Int
+  filePath     String
+  uploadedById String?
+  uploadedAt   DateTime       @default(now())
+
+  equipmentId      String?
+  equipment        Equipment?      @relation(fields: [equipmentId], references: [id])
+  workOrderId      String?
+  workOrder        WorkOrder?      @relation(fields: [workOrderId], references: [id])
+  pmRecordId       String?
+  pmRecord         PmRecord?       @relation(fields: [pmRecordId], references: [id])
+  cmRecordId       String?
+  cmRecord         CmRecord?       @relation(fields: [cmRecordId], references: [id])
+  findingId        String?
+  finding          Finding?        @relation(fields: [findingId], references: [id])
+  sceRecordId      String?
+  hseIncidentId    String?
+  hseIncident      HseIncident?    @relation(fields: [hseIncidentId], references: [id])
+  hseObservationId String?
+  hseObservation   HseObservation? @relation(fields: [hseObservationId], references: [id])
+  qcInspectionId   String?
+  qcInspection     QcInspection?   @relation(fields: [qcInspectionId], references: [id])
+  ncrId            String?
+  ncr              Ncr?            @relation(fields: [ncrId], references: [id])
+  inspectionId     String?
+  inspection       Inspection?     @relation(fields: [inspectionId], references: [id])
+
+  @@index([entityType])
+  @@index([equipmentId])
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  projectId String?
+  project   Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  NotificationCategory
+  message   String
+  link      String?
+  isRead    Boolean              @default(false)
+  createdAt DateTime             @default(now())
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id            String       @id @default(cuid())
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  entityType    SourceModule
+  entityId      String
+  action        AuditAction
+  actorId       String?
+  actor         User?        @relation("AuditActor", fields: [actorId], references: [id])
+  previousValue Json?
+  newValue      Json?
+  createdAt     DateTime     @default(now())
+
+  @@index([entityType, entityId])
+  @@index([projectId, createdAt])
+}
+
+model ImportJob {
+  id                String            @id @default(cuid())
+  projectId         String
+  project           Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  targetEntity      String
+  sourceFileName    String
+  sheetName         String?
+  columnMapping     Json?
+  duplicateStrategy DuplicateStrategy @default(ASK)
+  status            ImportStatus      @default(UPLOADED)
+  totalRows         Int               @default(0)
+  importedRows      Int               @default(0)
+  failedRows        Int               @default(0)
+  createdById       String?
+  createdAt         DateTime          @default(now())
+  completedAt       DateTime?
+
+  errors ImportError[]
+
+  @@index([projectId, status])
+}
+
+model ImportError {
+  id           String    @id @default(cuid())
+  importJobId  String
+  importJob    ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  rowNumber    Int
+  rowData      Json
+  errorMessage String
+
+  @@index([importJobId])
+}
+
+model DashboardConfig {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name           String
+  visibleWidgets Json
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  sharedAccess SharedDashboardAccess[]
+
+  @@unique([projectId, name])
+}
+
+model SharedDashboardAccess {
+  id                String          @id @default(cuid())
+  dashboardConfigId String
+  dashboardConfig   DashboardConfig @relation(fields: [dashboardConfigId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantedAt         DateTime        @default(now())
+
+  @@unique([dashboardConfigId, userId])
+}
