@@ -20,24 +20,30 @@ import {
 } from "@/lib/kpi/engine";
 import { resolvePeriod, getPreviousPeriod, PERIOD_LABELS, type PeriodType } from "@/lib/kpi/period";
 import { getMaintenanceTrend, getManHourTrend } from "@/lib/kpi/trends";
+import { getSCurveData, type SCurveGranularity } from "@/lib/kpi/scurve";
 import {
   MaintenanceTrendChart,
   PmCmTrendChart,
   ManHourTrendChart,
+  SCurveChart,
   SimplePieChart,
 } from "@/components/dashboard/dashboard-charts";
 
 const PERIOD_TYPES: PeriodType[] = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY", "CUSTOM"];
+const SCURVE_GRANULARITIES: SCurveGranularity[] = ["daily", "weekly", "monthly"];
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; start?: string; end?: string }>;
+  searchParams: Promise<{ period?: string; start?: string; end?: string; scurve?: string }>;
 }) {
   await requireModuleAccess("DASHBOARD", "read");
   const project = await getCurrentProject();
-  const { period: periodParam, start, end } = await searchParams;
+  const { period: periodParam, start, end, scurve: scurveParam } = await searchParams;
   const period: PeriodType = PERIOD_TYPES.includes(periodParam as PeriodType) ? (periodParam as PeriodType) : "MONTHLY";
+  const scurveGranularity: SCurveGranularity = SCURVE_GRANULARITIES.includes(scurveParam as SCurveGranularity)
+    ? (scurveParam as SCurveGranularity)
+    : "weekly";
 
   if (!project) {
     return (
@@ -63,6 +69,7 @@ export default async function DashboardPage({
     ltiFree,
     trend,
     hourTrend,
+    scurveData,
     recentActivity,
     criticalFindings,
     overdueActions,
@@ -80,6 +87,7 @@ export default async function DashboardPage({
     getLtiFreeManHours(project.id),
     getMaintenanceTrend(project.id, 6),
     getManHourTrend(project.id, 6),
+    getSCurveData(project.id, scurveGranularity),
     prisma.workOrder.findMany({
       where: { projectId: project.id },
       orderBy: { updatedAt: "desc" },
@@ -260,6 +268,28 @@ export default async function DashboardPage({
           <h3 className="mb-2 text-sm font-semibold text-ink">Man-Hour Trend</h3>
           <ManHourTrendChart data={hourTrend} />
         </div>
+      </div>
+
+      {/* Progress S-curve */}
+      <div className="mb-6 rounded-xl border border-line bg-surface p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-ink">Progress S-Curve — Planned vs Completed (Cumulative)</h3>
+          <nav className="flex gap-1 rounded-lg border border-line bg-surface-muted p-1">
+            {SCURVE_GRANULARITIES.map((g) => (
+              <Link
+                key={g}
+                href={`?period=${period}&scurve=${g}`}
+                className={clsx(
+                  "rounded-md px-2.5 py-1 text-xs font-medium capitalize",
+                  scurveGranularity === g ? "bg-indigo-600 text-white" : "text-ink-soft hover:bg-surface-subtle"
+                )}
+              >
+                {g}
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <SCurveChart data={scurveData} />
       </div>
 
       {/* Reports: composition pie charts + period-over-period comparison */}

@@ -90,6 +90,22 @@ export function ManHourTrendChart({
 
 const PIE_PALETTE = ["#4f46e5", "#059669", "#f59e0b", "#dc2626", "#7c3aed", "#0d9488", "#64748b", "#0891b2"];
 
+export function SCurveChart({ data }: { data: { label: string; planned: number; completed: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} />
+        <XAxis dataKey="label" tick={AXIS_TICK} />
+        <YAxis tick={AXIS_TICK} allowDecimals={false} />
+        <Tooltip />
+        <Legend />
+        <Line type="monotone" dataKey="planned" name="Planned (cumulative)" stroke={COLORS.planned} strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="completed" name="Completed (cumulative)" stroke={COLORS.completed} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function SimplePieChart({ data }: { data: { name: string; value: number }[] }) {
   const nonZero = data.filter((d) => d.value > 0);
 

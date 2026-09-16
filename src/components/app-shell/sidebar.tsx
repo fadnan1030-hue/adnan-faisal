@@ -14,7 +14,7 @@ const GROUPS: { title: string; items: string[] }[] = [
   },
   { title: "Compliance", items: ["SCE", "HSE", "QC/QA"] },
   { title: "Workforce", items: ["Man-Hours", "Timesheet"] },
-  { title: "Reporting", items: ["KPI Management", "Reports", "Excel Import/Export", "Documents"] },
+  { title: "Reporting", items: ["KPI Management", "Annexure-3 KPI", "Reports", "Excel Import/Export", "Documents"] },
   { title: "System", items: ["Notifications", "Administration", "Audit Trail"] },
 ];
 

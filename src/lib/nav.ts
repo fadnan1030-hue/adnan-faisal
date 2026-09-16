@@ -24,6 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Man-Hours", href: "/man-hours", module: "MAN_HOURS" },
   { label: "Timesheet", href: "/timesheet", module: "TIMESHEET" },
   { label: "KPI Management", href: "/kpi", module: "KPI_MANAGEMENT" },
+  { label: "Annexure-3 KPI", href: "/kpi/annexure3", module: "KPI_MANAGEMENT" },
   { label: "Reports", href: "/reports", module: "REPORTS" },
   { label: "Excel Import/Export", href: "/excel", module: "EXCEL_IO" },
   { label: "Documents", href: "/documents", module: "DOCUMENTS" },

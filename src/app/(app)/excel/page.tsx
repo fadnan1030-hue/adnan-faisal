@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDateTime } from "@/lib/format";
 import { inputClass, buttonPrimaryClass, Field } from "@/components/ui/form";
 import { can } from "@/lib/rbac";
-import { importWorkOrders } from "./actions";
+import { importWorkOrders, importBulkPaste } from "./actions";
 
 const EXPORT_OPTIONS: { dataset: string; label: string; description: string }[] = [
   { dataset: "all", label: "Complete Dataset", description: "Every module in one workbook, one worksheet each." },
@@ -89,6 +89,34 @@ export default async function ExcelPage({ searchParams }: { searchParams: Promis
             </div>
             <button type="submit" className={buttonPrimaryClass}>
               Import
+            </button>
+          </form>
+        </section>
+      )}
+
+      {canImport && (
+        <section className="mb-8">
+          <h2 className="mb-2 text-sm font-semibold text-ink">Bulk Paste from Excel</h2>
+          <p className="mb-3 text-xs text-ink-muted">
+            Copy rows from Excel (or type them) in this exact column order, one activity per line, separated by Tab.
+            An existing Work Order # is updated in place; a new one is created. Report Date, Reference # and Week
+            have no equivalent field here, so they&apos;re read but not stored.
+          </p>
+          <p className="mb-3 rounded-md border border-line bg-surface-muted px-3 py-2 font-mono text-[11px] text-ink-soft">
+            Report Date | Scope | Discipline (PM/CM/General/Emergency Callout) | Activity | Location | Sort Field |
+            Work Order # | Reference # | Plan Start | Plan Finish | Actual Start | Actual Finish | Planned Hours |
+            Actual Hours | Status | Week | Remarks | ABC Indicator (A/B/C/D, optional) | Priority (optional)
+          </p>
+          <form action={importBulkPaste} className="rounded-xl border border-line bg-surface p-4">
+            <textarea
+              name="bulkPaste"
+              rows={8}
+              required
+              placeholder="Paste tab-separated rows here..."
+              className={`${inputClass} font-mono text-xs`}
+            />
+            <button type="submit" className={`${buttonPrimaryClass} mt-3`}>
+              Import Pasted Rows
             </button>
           </form>
         </section>

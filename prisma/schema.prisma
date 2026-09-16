@@ -324,6 +324,17 @@ model Project {
   actualCompletionDate  DateTime?
   ltiFreeStartDate      DateTime?
   currentPeriodLabel    String?
+
+  // Annexure-3 contract KPI formula inputs (spec: Schedule 55% + Quality 20%
+  // + HSSE 25%) - a roster-based man-hours baseline and daily report
+  // numbering, both constant-per-project rather than re-entered daily.
+  availableMhrsPerWeek Decimal? @db.Decimal(8, 2)
+  rosterDirectQty      Int?
+  rosterIndirectQty    Int?
+  rosterStandardHours  Decimal? @db.Decimal(5, 2)
+  reportNoBaseline     Int?
+  reportNoBaseDate     DateTime?
+
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -353,8 +364,44 @@ model Project {
   importJobs       ImportJob[]
   dashboardConfigs DashboardConfig[]
   photos           Photo[]
+  kpiDailyEntries  KpiDailyEntry[]
 
   @@index([status])
+}
+
+// Daily Quality/HSSE inputs and emergency man-hours feeding the Annexure-3
+// weighted KPI score (spec: Schedule Compliance is derived live from
+// WorkOrder/PmRecord/CmRecord instead, so it isn't stored here). One row
+// per project per calendar date.
+model KpiDailyEntry {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date      DateTime
+
+  ltiOccurred         Boolean  @default(false)
+  directEmergencyMH   Decimal? @db.Decimal(8, 2)
+  indirectEmergencyMH Decimal? @db.Decimal(8, 2)
+
+  zeroLeakage Boolean?
+  noRework    Boolean?
+
+  trif               Decimal? @db.Decimal(6, 2)
+  ptwPct             Decimal? @db.Decimal(5, 2)
+  lsrViolations      Int?
+  otherLsrPct        Decimal? @db.Decimal(5, 2)
+  lsrCloseoutPct     Decimal? @db.Decimal(5, 2)
+  safetyObsPct       Decimal? @db.Decimal(5, 2)
+  leadershipWalkPct  Decimal? @db.Decimal(5, 2)
+  vehicleIncidents   Int?
+  securityViolations Int?
+  spills             Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, date])
+  @@index([projectId, date])
 }
 
 model ProjectMember {

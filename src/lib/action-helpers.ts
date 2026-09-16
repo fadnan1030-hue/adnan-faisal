@@ -30,6 +30,11 @@ export function optDecimal(formData: FormData, key: string): number | undefined 
   return Number.isNaN(n) ? undefined : n;
 }
 
+export function optInt(formData: FormData, key: string): number | undefined {
+  const v = optDecimal(formData, key);
+  return v === undefined ? undefined : Math.trunc(v);
+}
+
 export function checkbox(formData: FormData, key: string): boolean {
   return formData.get(key) === "on" || formData.get(key) === "true";
 }
