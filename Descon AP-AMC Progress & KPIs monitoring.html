@@ -184,15 +184,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   select,input[type="text"],input[type="number"],input[type="date"]{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);}
   .filters-note{font-size:11.5px;color:var(--text2);width:100%;}
   .filter-combo{position:relative;}
-  .filter-combo-input{width:100%;cursor:text;}
-  .filter-combo-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 4px;display:none;}
+  .filter-combo-inputwrap{position:relative;display:block;}
+  .filter-combo-input{width:100%;cursor:text;padding-right:26px;box-sizing:border-box;display:block;}
+  .filter-combo-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;display:none;}
   .filter-combo.has-value .filter-combo-clear{display:block;}
   .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:50;display:none;}
   .filter-combo-option{padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .filter-combo-option:hover, .filter-combo-option.highlighted{background:var(--bg);}
   .filter-combo-option.selected{color:var(--blue);font-weight:700;}
   .filter-combo-empty{padding:8px 10px;font-size:12.5px;color:var(--text2);}
-  .filter-combo-msg{font-size:11px;color:var(--red);margin-top:2px;min-height:14px;}
+  .filter-combo-msg{position:absolute;top:calc(100% + 2px);left:0;right:0;font-size:11px;color:var(--red);background:var(--card-solid,var(--card));z-index:40;pointer-events:none;}
+  .filter-combo-msg:empty{display:none;}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
   .kpi-card{position:relative;overflow:hidden;padding-left:20px;}
   .kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent,var(--blue));}
@@ -374,8 +376,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <label>Equipment (sort field)</label>
           <select id="fSortField"></select>
         </div>
-        <div class="field" style="justify-content:flex-end;">
-          <button class="subtle" id="btnResetFilters" style="border:1px solid var(--border);color:var(--text2);white-space:nowrap;">Reset filters</button>
+        <div class="field">
+          <label style="visibility:hidden;" aria-hidden="true">Reset</label>
+          <button class="subtle" id="btnResetFilters" style="width:100%;box-sizing:border-box;padding:7px 14px;border:1px solid var(--border);color:var(--text2);white-space:nowrap;">Reset filters</button>
         </div>
         <div class="filters-note">Filters apply to the KPI cards, charts, and Activity detail below. Pick a Day to see just that day's progress; leave it on "All" for cumulative totals across the whole log. Every field below can be searched, typed into directly (e.g. a date, a month name, a week number), or picked from the list.</div>
       </div>
@@ -1857,18 +1860,21 @@ function initFilterCombos(){
     select.parentNode.insertBefore(wrapper, select);
     select.style.display = 'none';
     wrapper.appendChild(select);
+    const inputWrap = document.createElement('div');
+    inputWrap.className = 'filter-combo-inputwrap';
+    wrapper.appendChild(inputWrap);
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'filter-combo-input';
     input.autocomplete = 'off';
     input.placeholder = 'Search or type...';
-    wrapper.appendChild(input);
+    inputWrap.appendChild(input);
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.className = 'filter-combo-clear';
     clearBtn.title = 'Clear (set to All)';
     clearBtn.textContent = '×';
-    wrapper.appendChild(clearBtn);
+    inputWrap.appendChild(clearBtn);
     const list = document.createElement('div');
     list.className = 'filter-combo-list';
     wrapper.appendChild(list);
@@ -1888,7 +1894,7 @@ function initFilterCombos(){
         if (highlighted){ applyComboValue(id, highlighted.getAttribute('data-value')); closeFilterComboList(id); input.blur(); return; }
         const resolved = resolveFilterInput(id, input.value);
         if (resolved!=null){ applyComboValue(id, resolved); closeFilterComboList(id); input.blur(); }
-        else { msg.textContent = id==='fDay' ? 'Invalid date. Try e.g. 16-Sep-2026 or 16/09/2026.' : 'No matching records found.'; }
+        else { msg.textContent = id==='fDay' ? 'Invalid date. Try e.g. 16-Sep-2026 or 16/09/2026.' : 'No matching records found.'; closeFilterComboList(id); }
       }
     });
     input.addEventListener('blur', ()=>{
