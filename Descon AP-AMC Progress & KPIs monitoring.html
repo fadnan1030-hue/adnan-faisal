@@ -183,6 +183,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .field label{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
   select,input[type="text"],input[type="number"],input[type="date"]{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);}
   .filters-note{font-size:11.5px;color:var(--text2);width:100%;}
+  .filter-combo{position:relative;}
+  .filter-combo-input{width:100%;cursor:text;}
+  .filter-combo-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 4px;display:none;}
+  .filter-combo.has-value .filter-combo-clear{display:block;}
+  .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:50;display:none;}
+  .filter-combo-option{padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .filter-combo-option:hover, .filter-combo-option.highlighted{background:var(--bg);}
+  .filter-combo-option.selected{color:var(--blue);font-weight:700;}
+  .filter-combo-empty{padding:8px 10px;font-size:12.5px;color:var(--text2);}
+  .filter-combo-msg{font-size:11px;color:var(--red);margin-top:2px;min-height:14px;}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
   .kpi-card{position:relative;overflow:hidden;padding-left:20px;}
   .kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent,var(--blue));}
@@ -364,7 +374,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <label>Equipment (sort field)</label>
           <select id="fSortField"></select>
         </div>
-        <div class="filters-note">Filters apply to the KPI cards, charts, and Activity detail below. Pick a Day to see just that day's progress; leave it on "All" for cumulative totals across the whole log.</div>
+        <div class="field" style="justify-content:flex-end;">
+          <button class="subtle" id="btnResetFilters" style="border:1px solid var(--border);color:var(--text2);white-space:nowrap;">Reset filters</button>
+        </div>
+        <div class="filters-note">Filters apply to the KPI cards, charts, and Activity detail below. Pick a Day to see just that day's progress; leave it on "All" for cumulative totals across the whole log. Every field below can be searched, typed into directly (e.g. a date, a month name, a week number), or picked from the list.</div>
       </div>
     </div>
 
@@ -1718,6 +1731,177 @@ function monthOptionLabel(v){
   return new Date(y, m-1, 1).toLocaleDateString('en-GB', {month:'long', year:'numeric'});
 }
 
+// --- Searchable filter comboboxes ---------------------------------------
+// Each filter stays a plain <select> underneath (so every existing KPI/chart
+// function keeps reading r.value/onchange exactly as before) - this just
+// layers a type-to-search text input + dropdown list on top of it, and
+// resolves free-typed text (a date, a month name, a week number, ...) to
+// the matching option before applying it as the real select's value.
+const FILTER_COMBO_IDS = ['fScope','fDiscipline','fMonth','fWeek','fDay','fStatus','fSortField'];
+const MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+function comboOptionsOf(select){ return Array.from(select.options); }
+function comboLabelFor(select){
+  const opt = select.options[select.selectedIndex];
+  return opt ? opt.textContent : '';
+}
+function resolveFilterInput(id, text){
+  const select = document.getElementById(id);
+  const q = (text||'').trim();
+  if (!q) return 'All';
+  const qLower = q.toLowerCase();
+  const opts = comboOptionsOf(select);
+  let hit = opts.find(o => o.textContent.toLowerCase() === qLower || o.value.toLowerCase() === qLower);
+  if (hit) return hit.value;
+
+  if (id === 'fDay'){
+    const d = parseLenientDate(q);
+    if (d){
+      hit = opts.find(o => o.value === dateKey(d));
+      if (hit) return hit.value;
+    }
+  }
+  if (id === 'fMonth'){
+    const cleaned = qLower.replace(/[^a-z]/g,'');
+    let monthIdx = cleaned ? MONTH_NAMES.findIndex(m=>m.startsWith(cleaned)) : -1;
+    const numMatch = q.match(/^\s*(\d{1,2})\s*$/);
+    if (monthIdx===-1 && numMatch){
+      const n = parseInt(numMatch[1],10);
+      if (n>=1 && n<=12) monthIdx = n-1;
+    }
+    const yearMatch = q.match(/\b(20\d{2})\b/);
+    if (monthIdx>=0){
+      const mm = String(monthIdx+1).padStart(2,'0');
+      let candidates = opts.filter(o=> o.value!=='All' && o.value.endsWith('-'+mm));
+      if (yearMatch) candidates = candidates.filter(o=> o.value.startsWith(yearMatch[1]));
+      if (candidates.length) return candidates.sort((a,b)=> b.value.localeCompare(a.value))[0].value;
+    }
+  }
+  if (id === 'fWeek'){
+    const numMatch = q.match(/(\d{1,2})/);
+    if (numMatch){
+      hit = opts.find(o => (o.value.match(/\d+/)||[])[0] === String(parseInt(numMatch[1],10)));
+      if (hit) return hit.value;
+    }
+  }
+  const subMatches = opts.filter(o=> o.value!=='All' && o.textContent.toLowerCase().includes(qLower));
+  if (subMatches.length === 1) return subMatches[0].value;
+  return null;
+}
+function applyComboValue(id, value){
+  const select = document.getElementById(id);
+  if (select.value === value){ refreshFilterCombo(id); return; }
+  select.value = value;
+  select.dispatchEvent(new Event('change'));
+  refreshFilterCombo(id);
+}
+function refreshFilterCombo(id){
+  const select = document.getElementById(id);
+  if (!select) return;
+  const wrapper = select.closest('.filter-combo');
+  if (!wrapper) return;
+  const input = wrapper.querySelector('.filter-combo-input');
+  input.value = comboLabelFor(select);
+  wrapper.classList.toggle('has-value', select.value !== 'All');
+  const msg = wrapper.querySelector('.filter-combo-msg');
+  if (msg) msg.textContent = '';
+}
+function closeFilterComboList(id){
+  const select = document.getElementById(id);
+  const wrapper = select && select.closest('.filter-combo');
+  if (!wrapper) return;
+  const list = wrapper.querySelector('.filter-combo-list');
+  list.style.display = 'none';
+  list.dataset.highlighted = '';
+}
+function renderFilterComboList(id, query){
+  const select = document.getElementById(id);
+  const wrapper = select.closest('.filter-combo');
+  const list = wrapper.querySelector('.filter-combo-list');
+  const opts = comboOptionsOf(select);
+  const q = (query||'').trim().toLowerCase();
+  const filtered = q ? opts.filter(o => o.textContent.toLowerCase().includes(q)) : opts;
+  if (!filtered.length){
+    list.innerHTML = `<div class="filter-combo-empty">No matching results</div>`;
+  } else {
+    list.innerHTML = filtered.map(o=>`<div class="filter-combo-option${o.value===select.value?' selected':''}" data-value="${escapeHtml(o.value)}">${escapeHtml(o.textContent)}</div>`).join('');
+    list.querySelectorAll('.filter-combo-option').forEach(el=>{
+      el.addEventListener('mousedown', (e)=>{
+        e.preventDefault();
+        applyComboValue(id, el.getAttribute('data-value'));
+        closeFilterComboList(id);
+      });
+    });
+  }
+  list.style.display = 'block';
+  list.dataset.highlighted = '';
+}
+function moveFilterComboHighlight(id, dir){
+  const select = document.getElementById(id);
+  const wrapper = select.closest('.filter-combo');
+  const list = wrapper.querySelector('.filter-combo-list');
+  const items = Array.from(list.querySelectorAll('.filter-combo-option'));
+  if (!items.length) return;
+  let idx = items.findIndex(el=>el.classList.contains('highlighted'));
+  items.forEach(el=>el.classList.remove('highlighted'));
+  idx = idx<0 ? (dir>0? 0 : items.length-1) : (idx+dir+items.length)%items.length;
+  items[idx].classList.add('highlighted');
+  items[idx].scrollIntoView({block:'nearest'});
+}
+function initFilterCombos(){
+  FILTER_COMBO_IDS.forEach(id=>{
+    const select = document.getElementById(id);
+    if (!select || select.dataset.comboWrapped) return;
+    select.dataset.comboWrapped = '1';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'filter-combo';
+    select.parentNode.insertBefore(wrapper, select);
+    select.style.display = 'none';
+    wrapper.appendChild(select);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'filter-combo-input';
+    input.autocomplete = 'off';
+    input.placeholder = 'Search or type...';
+    wrapper.appendChild(input);
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'filter-combo-clear';
+    clearBtn.title = 'Clear (set to All)';
+    clearBtn.textContent = '×';
+    wrapper.appendChild(clearBtn);
+    const list = document.createElement('div');
+    list.className = 'filter-combo-list';
+    wrapper.appendChild(list);
+    const msg = document.createElement('div');
+    msg.className = 'filter-combo-msg';
+    wrapper.appendChild(msg);
+
+    input.addEventListener('focus', ()=>{ input.select(); renderFilterComboList(id, ''); });
+    input.addEventListener('input', ()=>{ msg.textContent = ''; renderFilterComboList(id, input.value); });
+    input.addEventListener('keydown', (e)=>{
+      if (e.key==='ArrowDown'){ e.preventDefault(); if (list.style.display!=='block') renderFilterComboList(id, input.value); moveFilterComboHighlight(id, 1); }
+      else if (e.key==='ArrowUp'){ e.preventDefault(); moveFilterComboHighlight(id, -1); }
+      else if (e.key==='Escape'){ closeFilterComboList(id); input.blur(); }
+      else if (e.key==='Enter'){
+        e.preventDefault();
+        const highlighted = list.querySelector('.filter-combo-option.highlighted');
+        if (highlighted){ applyComboValue(id, highlighted.getAttribute('data-value')); closeFilterComboList(id); input.blur(); return; }
+        const resolved = resolveFilterInput(id, input.value);
+        if (resolved!=null){ applyComboValue(id, resolved); closeFilterComboList(id); input.blur(); }
+        else { msg.textContent = id==='fDay' ? 'Invalid date. Try e.g. 16-Sep-2026 or 16/09/2026.' : 'No matching records found.'; }
+      }
+    });
+    input.addEventListener('blur', ()=>{
+      setTimeout(()=>{ closeFilterComboList(id); refreshFilterCombo(id); }, 150);
+    });
+    clearBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); applyComboValue(id, 'All'); closeFilterComboList(id); });
+    refreshFilterCombo(id);
+  });
+}
+on('btnResetFilters', 'click', ()=>{
+  FILTER_COMBO_IDS.forEach(id=> applyComboValue(id, 'All'));
+});
+
 function fillFilterOptions(){
   const scopes = ['All', ...Array.from(new Set(state.rows.map(r=>r.scope).filter(Boolean)))];
   const disciplines = ['All', ...Array.from(new Set(state.rows.map(r=>r.discipline).filter(Boolean)))];
@@ -1745,6 +1929,8 @@ function fillFilterOptions(){
   setOpts('fDay', days, 'apstt1_day', 'All');
   setOpts('fStatus', statuses, 'apstt1_status', 'All');
   setOpts('fSortField', sortFields, 'apstt1_sortfield', 'All');
+  initFilterCombos();
+  FILTER_COMBO_IDS.forEach(refreshFilterCombo);
 
   const gEl = document.getElementById('fGranularity');
   gEl.value = localStorage.getItem('apstt1_granularity') || 'weekly';
@@ -1873,19 +2059,11 @@ function emergencyMHFor(k){
   return { indirectMH: e ? (Number(e.indirectMH)||0) : 0, directMH: e ? (Number(e.directMH)||0) : 0 };
 }
 function getDailyMHParts(k){
-  const bc = state.history.barChart[k];
-  if (bc && bc.manpower && bc.manpower.length){
-    const byLabel = {};
-    bc.manpower.forEach(m=>{ byLabel[m.label] = m; });
-    const ind = byLabel['In-Direct']||{}, dir = byLabel['Direct']||{};
-    return {
-      indirectQty: ind.qty||0, directQty: dir.qty||0,
-      indirectStd: ind.dailyMH||0, directStd: dir.dailyMH||0,
-      indirectEmg: 0, directEmg: 0,
-      indirectMH: ind.dailyMH||0, directMH: dir.dailyMH||0,
-      reportNo: bc.reportNo || null, fromExcel: true
-    };
-  }
+  // Always derive man-hours from the roster settings (Sun-Thu standard + any
+  // manually entered Emergency/Callout MH) rather than whatever a loaded
+  // Excel file's Bar Chart sheet says - that sheet isn't guaranteed to
+  // reflect the actual Sun-Thu-only work week, so it must never override
+  // this calculation.
   const std = standardDailyMH(k);
   const emg = emergencyMHFor(k);
   return {
