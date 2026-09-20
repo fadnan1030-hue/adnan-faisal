@@ -220,6 +220,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .empty-state{padding:60px 24px;text-align:center;color:var(--text2);}
   .empty-state .big{font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px;}
   .plan-table-wrap{max-height:260px;overflow:auto;}
+  .activity-detail-wrap{max-height:560px;overflow:auto;position:relative;}
+  #planTable thead th{position:sticky;background:var(--card-solid);z-index:3;}
+  #planTable thead tr:first-child th{top:0;}
+  #planTable thead tr.table-filter-row th{z-index:2;padding:4px 6px;}
+  #planTable th[data-sort]{cursor:pointer;user-select:none;white-space:nowrap;}
+  #planTable th[data-sort]:hover{color:var(--text);}
+  .sort-arrow{font-size:9px;margin-left:3px;opacity:.65;display:inline-block;width:8px;}
+  .table-filter-input{width:100%;box-sizing:border-box;font:inherit;font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card-solid);color:var(--text);}
+  .table-filter-input:focus{outline:none;border-color:var(--blue);}
   .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;}
   .badge-completed{background:#e2f6e9;color:#137a3d;}
   .badge-progress{background:#fdf1d4;color:#8a6300;}
@@ -836,12 +845,40 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="card" style="margin-bottom:16px;">
       <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
         <span>All matching activities</span>
-        <button class="primary no-print" id="btnBuildEquipmentReport" style="display:none;font-size:12.5px;padding:7px 12px;">&#128203; Build Equipment Report</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="subtle no-print" id="btnClearTableFilters" style="border:1px solid var(--border);color:var(--text2);font-size:11.5px;padding:5px 10px;">Clear table filters</button>
+          <button class="primary no-print" id="btnBuildEquipmentReport" style="display:none;font-size:12.5px;padding:7px 12px;">&#128203; Build Equipment Report</button>
+        </div>
       </div>
       <div class="chart-desc" id="planForTodayDesc">Activities for the latest report date. Click a row to see its remarks.</div>
-      <div class="plan-table-wrap" style="margin-top:10px;">
+      <div class="plan-table-wrap activity-detail-wrap" style="margin-top:10px;">
         <table class="data-table" id="planTable">
-          <thead><tr><th>Work order</th><th>Sort field</th><th>Discipline</th><th>ABC</th><th>Activity</th><th>Location</th><th>Planned hrs</th><th>Actual hrs</th><th>Status</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th data-sort="sapNumber">Work order<span class="sort-arrow"></span></th>
+              <th data-sort="sortField">Sort field<span class="sort-arrow"></span></th>
+              <th data-sort="discipline">Discipline<span class="sort-arrow"></span></th>
+              <th data-sort="abcIndicator">ABC<span class="sort-arrow"></span></th>
+              <th data-sort="activity">Activity<span class="sort-arrow"></span></th>
+              <th data-sort="location">Location<span class="sort-arrow"></span></th>
+              <th data-sort="plannedHours">Planned hrs<span class="sort-arrow"></span></th>
+              <th data-sort="actualHours">Actual hrs<span class="sort-arrow"></span></th>
+              <th data-sort="status">Status<span class="sort-arrow"></span></th>
+              <th></th>
+            </tr>
+            <tr class="table-filter-row">
+              <th><input type="text" id="tfWorkOrder" class="table-filter-input" placeholder="Search"></th>
+              <th><input type="text" id="tfSortField" class="table-filter-input" placeholder="Search"></th>
+              <th><select id="tfDiscipline" class="table-filter-input"><option value="">All</option></select></th>
+              <th><select id="tfAbc" class="table-filter-input"><option value="">All</option></select></th>
+              <th><input type="text" id="tfActivity" class="table-filter-input" placeholder="Search activity"></th>
+              <th><input type="text" id="tfLocation" class="table-filter-input" placeholder="Search location"></th>
+              <th><input type="text" id="tfPlannedHrs" class="table-filter-input" placeholder="e.g. &gt;10, 5-20"></th>
+              <th><input type="text" id="tfActualHrs" class="table-filter-input" placeholder="e.g. &gt;10, 5-20"></th>
+              <th><select id="tfStatus" class="table-filter-input"><option value="">All</option></select></th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
@@ -2205,6 +2242,7 @@ function fillFilterOptions(){
   setOpts('fSortField', sortFields, 'apstt1_sortfield', 'All');
   initFilterCombos();
   FILTER_COMBO_IDS.forEach(refreshFilterCombo);
+  fillActivityTableFilterOptions();
 
   const gEl = document.getElementById('fGranularity');
   gEl.value = localStorage.getItem('apstt1_granularity') || 'weekly';
@@ -2853,6 +2891,150 @@ function renderManpowerTable(k){
 function escapeHtml(s){
   return String(s==null? '' : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+// In-memory only (not persisted): a quick per-column search layer on top of
+// the Activity Detail table, applied AFTER matchFilters() so it never touches
+// the main dashboard filters, state.rows, or the cloud data itself.
+let tableFilters = { workOrder:'', sortField:'', discipline:'', abc:'', activity:'', location:'', plannedHrs:'', actualHrs:'', status:'' };
+let tableSort = { key:null, dir:1 };
+let lastActivityDetailArgs = null;
+
+function parseNumericFilterExpr(expr){
+  const s = String(expr||'').trim();
+  if (!s) return null;
+  const num = '(-?\\d+(?:\\.\\d+)?)';
+  let m;
+  if ((m = s.match(new RegExp(`^${num}\\s*-\\s*${num}$`)))){
+    const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
+    return v => v>=Math.min(lo,hi) && v<=Math.max(lo,hi);
+  }
+  if ((m = s.match(new RegExp(`^>=\\s*${num}$`)))) { const n=parseFloat(m[1]); return v=>v>=n; }
+  if ((m = s.match(new RegExp(`^<=\\s*${num}$`)))) { const n=parseFloat(m[1]); return v=>v<=n; }
+  if ((m = s.match(new RegExp(`^>\\s*${num}$`))))  { const n=parseFloat(m[1]); return v=>v>n; }
+  if ((m = s.match(new RegExp(`^<\\s*${num}$`))))  { const n=parseFloat(m[1]); return v=>v<n; }
+  if ((m = s.match(new RegExp(`^${num}$`))))       { const n=parseFloat(m[1]); return v=>Math.abs(v-n) < 1e-9; }
+  return null;
+}
+
+function matchTableFilters(r, tf){
+  if (tf.workOrder){
+    const hay = `${r.sapNumber||''} ${r.referenceNumber||''}`.toLowerCase();
+    if (!hay.includes(tf.workOrder.toLowerCase())) return false;
+  }
+  if (tf.sortField && !String(r.sortField||'').toLowerCase().includes(tf.sortField.toLowerCase())) return false;
+  if (tf.discipline && r.discipline !== tf.discipline) return false;
+  if (tf.abc && String(r.abcIndicator||'') !== tf.abc) return false;
+  if (tf.activity && !String(r.activity||'').toLowerCase().includes(tf.activity.toLowerCase())) return false;
+  if (tf.location && !String(r.location||'').toLowerCase().includes(tf.location.toLowerCase())) return false;
+  if (tf.plannedHrs){
+    const pred = parseNumericFilterExpr(tf.plannedHrs);
+    if (pred && !pred(r.plannedHours||0)) return false;
+  }
+  if (tf.actualHrs){
+    const pred = parseNumericFilterExpr(tf.actualHrs);
+    if (pred && !pred(r.actualHours||0)) return false;
+  }
+  if (tf.status && r.status !== tf.status) return false;
+  return true;
+}
+
+function sortActivityRows(rows){
+  if (!tableSort.key) return rows;
+  const key = tableSort.key, dir = tableSort.dir;
+  const numeric = key==='plannedHours' || key==='actualHours';
+  return rows.slice().sort((a,b)=>{
+    if (numeric){ return ((a[key]||0)-(b[key]||0)) * dir; }
+    const av = String(a[key]==null?'':a[key]).toLowerCase();
+    const bv = String(b[key]==null?'':b[key]).toLowerCase();
+    return av.localeCompare(bv) * dir;
+  });
+}
+
+function syncActivityTableStickyOffsets(){
+  const table = document.getElementById('planTable');
+  if (!table) return;
+  const headRow = table.querySelector('thead tr:first-child');
+  const filterRow = table.querySelector('thead tr.table-filter-row');
+  if (!headRow || !filterRow) return;
+  const h = headRow.getBoundingClientRect().height;
+  filterRow.querySelectorAll('th').forEach(th=>{ th.style.top = h + 'px'; });
+}
+
+function updateActivityTableSortArrows(){
+  document.querySelectorAll('#planTable thead tr:first-child th[data-sort]').forEach(th=>{
+    const arrow = th.querySelector('.sort-arrow');
+    if (!arrow) return;
+    arrow.textContent = th.getAttribute('data-sort')===tableSort.key ? (tableSort.dir===1?'▲':'▼') : '';
+  });
+}
+
+function refreshActivityDetailTable(){
+  if (!lastActivityDetailArgs) return;
+  renderActivityDetail(lastActivityDetailArgs.f, lastActivityDetailArgs.targetKey, lastActivityDetailArgs.targetDate);
+}
+
+const ACTIVITY_TABLE_FILTER_FIELDS = [
+  ['tfWorkOrder','workOrder','input'],
+  ['tfSortField','sortField','input'],
+  ['tfDiscipline','discipline','change'],
+  ['tfAbc','abc','change'],
+  ['tfActivity','activity','input'],
+  ['tfLocation','location','input'],
+  ['tfPlannedHrs','plannedHrs','input'],
+  ['tfActualHrs','actualHrs','input'],
+  ['tfStatus','status','change']
+];
+
+function initActivityTableFilters(){
+  ACTIVITY_TABLE_FILTER_FIELDS.forEach(([id, key, evt])=>{
+    const el = document.getElementById(id);
+    if (!el || el.__tfWired) return;
+    el.__tfWired = true;
+    el.addEventListener(evt, ()=>{ tableFilters[key] = el.value.trim(); refreshActivityDetailTable(); });
+  });
+  on('btnClearTableFilters', 'click', ()=>{
+    Object.keys(tableFilters).forEach(k=>{ tableFilters[k]=''; });
+    ACTIVITY_TABLE_FILTER_FIELDS.forEach(([id])=>{ const el=document.getElementById(id); if (el) el.value=''; });
+    refreshActivityDetailTable();
+  });
+  document.querySelectorAll('#planTable thead tr:first-child th[data-sort]').forEach(th=>{
+    if (th.__sortWired) return;
+    th.__sortWired = true;
+    th.addEventListener('click', ()=>{
+      const key = th.getAttribute('data-sort');
+      if (tableSort.key === key) tableSort.dir *= -1; else { tableSort.key = key; tableSort.dir = 1; }
+      updateActivityTableSortArrows();
+      refreshActivityDetailTable();
+    });
+  });
+}
+
+function fillActivityTableFilterOptions(){
+  const discEl = document.getElementById('tfDiscipline');
+  if (discEl){
+    const disc = ['', ...Array.from(new Set(state.rows.map(r=>r.discipline).filter(Boolean)))];
+    const prev = discEl.value;
+    discEl.innerHTML = disc.map(v=>`<option value="${v}">${v===''?'All':displayDiscipline(v)}</option>`).join('');
+    discEl.value = disc.includes(prev) ? prev : '';
+  }
+  const abcEl = document.getElementById('tfAbc');
+  if (abcEl){
+    const abcFromData = Array.from(new Set(state.rows.map(r=>r.abcIndicator).filter(Boolean)));
+    const abc = ['', ...Array.from(new Set(['A','B','C','D', ...abcFromData]))];
+    const prev = abcEl.value;
+    abcEl.innerHTML = abc.map(v=>`<option value="${v}">${v===''?'All':v}</option>`).join('');
+    abcEl.value = abc.includes(prev) ? prev : '';
+  }
+  const statusEl = document.getElementById('tfStatus');
+  if (statusEl){
+    const statusFromData = Array.from(new Set(state.rows.map(r=>r.status).filter(Boolean)));
+    const statuses = ['', ...Array.from(new Set(['Completed','In Progress','Not Started','Rescheduled', ...statusFromData]))];
+    const prev = statusEl.value;
+    statusEl.innerHTML = statuses.map(v=>`<option value="${v}">${v===''?'All':v}</option>`).join('');
+    statusEl.value = statuses.includes(prev) ? prev : '';
+  }
+  initActivityTableFilters();
+}
+
 function renderActivityDetail(f, targetKey, targetDate){
   // Uses the exact same matchFilters() cumulative logic as computeKPIs()/charts -
   // this table must always show every activity (any status: Open, Pending,
@@ -2860,17 +3042,23 @@ function renderActivityDetail(f, targetKey, targetDate){
   // Week/Day/Status/Equipment filters, not just a single day's activities.
   // "Day: All" means no date restriction at all, same as every other filter's
   // "All" - only an explicitly picked Day narrows this to one date.
-  const rows = state.rows.filter(r=>matchFilters(r,f));
+  lastActivityDetailArgs = { f, targetKey, targetDate };
+  const baseRows = state.rows.filter(r=>matchFilters(r,f));
+  const tableFiltersActive = Object.values(tableFilters).some(Boolean);
+  const rows = sortActivityRows(tableFiltersActive ? baseRows.filter(r=>matchTableFilters(r, tableFilters)) : baseRows);
   const tbody = document.querySelector('#planTable tbody');
   const statusDesc = f.status==='All' ? 'all' : f.status.toLowerCase();
   if (!state.rows.length){
     document.getElementById('planForTodayDesc').textContent = 'No data loaded yet.';
+  } else if (tableFiltersActive){
+    document.getElementById('planForTodayDesc').textContent = `Showing ${rows.length} of ${baseRows.length} activities after table filters. Click a row to see its remarks.`;
   } else if (f.day!=='All' && targetDate){
     document.getElementById('planForTodayDesc').textContent = `Showing ${statusDesc} activities for ${targetDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}. Click a row to see its remarks.`;
   } else {
     document.getElementById('planForTodayDesc').textContent = `Showing ${statusDesc} activities matching the current filters (${rows.length} found). Click a row to see its remarks.`;
   }
-  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">No activities found for the selected filters.</td></tr>`; return; }
+  updateActivityTableSortArrows();
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">No activities match the selected filters.</td></tr>`; syncActivityTableStickyOffsets(); return; }
   const editableTable = !state.isSnapshot;
   tbody.innerHTML = rows.map((r,i)=>{
     const badgeClass = r.status==='Completed' ? 'badge-completed' : r.status==='In Progress' ? 'badge-progress' : r.status==='Rescheduled' ? 'badge-rescheduled' : 'badge-notstarted';
@@ -2918,6 +3106,7 @@ function renderActivityDetail(f, targetKey, targetDate){
   tbody.querySelectorAll('button[data-del]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{ e.stopPropagation(); deleteActivityById(btn.getAttribute('data-del')); });
   });
+  syncActivityTableStickyOffsets();
 }
 
 function renderHistoryPanel(){
@@ -3434,6 +3623,7 @@ function on(id, event, handler){
   const el = document.getElementById(id);
   if (el) el.addEventListener(event, handler);
 }
+window.addEventListener('resize', syncActivityTableStickyOffsets);
 on('btnLoad', 'click', loadViaPicker);
 on('btnRefresh', 'click', refreshFile);
 on('btnClearHistory', 'click', ()=>{
