@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const DASHBOARD_FILENAME = 'Descon AP-AMC Progress & KPIs monitoring.html';
 
@@ -21,7 +22,8 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
 
@@ -34,6 +36,32 @@ function createWindow() {
   });
   win.loadFile(getDashboardPath());
 }
+
+// Electron's window.print() dialog can't show a print preview and routes
+// through the OS print pipeline, which is confusing ("This app doesn't
+// support print preview") even though it can still work. Save straight to a
+// PDF file instead: printToPDF renders the page using the same print media
+// styles as window.print() (so the existing @media print rules still hide
+// the dashboard chrome correctly), then a native Save dialog lets the user
+// pick where to put it, defaulting to the report's own meaningful filename.
+ipcMain.handle('print-to-pdf', async (event, suggestedFileName) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { ok: false, error: 'No window' };
+  try {
+    const pdfBuffer = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4' });
+    const safeName = (suggestedFileName || 'Report').replace(/[\\/:*?"<>|]+/g, '_');
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Save PDF',
+      defaultPath: `${safeName}.pdf`,
+      filters: [{ name: 'PDF files', extensions: ['pdf'] }]
+    });
+    if (canceled || !filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(filePath, pdfBuffer);
+    return { ok: true, filePath };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 
 // Only one copy of this app may run at a time. Without this, a second launch
 // (e.g. double-clicking the exe again before the first one has fully quit)

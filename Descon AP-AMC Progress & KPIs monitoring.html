@@ -2150,17 +2150,30 @@ on('btnErClearImageSelection', 'click', ()=>{
   equipmentImagesFor(equipmentId).forEach(img=> updateEquipmentImage(equipmentId, img.id, { included: false }));
   renderEquipmentImageGallery(equipmentId);
 });
+// In the desktop app, window.print() routes through Electron's simplified
+// print dialog, which can't show a print preview ("This app doesn't support
+// print preview") even though the print itself may still work - confusing
+// either way. When running inside the desktop app (window.electronAPI is
+// only exposed there), save straight to a PDF file instead via the main
+// process's printToPDF, with a native Save dialog defaulting to the given
+// filename. In a plain browser (no electronAPI), fall back to window.print()
+// exactly as before.
+async function printOrExportPdf(suggestedFileName){
+  if (window.electronAPI && window.electronAPI.printToPDF){
+    const result = await window.electronAPI.printToPDF(suggestedFileName);
+    if (result && result.ok) alert('PDF saved to:\n' + result.filePath);
+    else if (result && !result.canceled) alert('Could not save the PDF: ' + (result.error || 'unknown error'));
+    return;
+  }
+  window.print();
+}
 on('btnPrintEquipmentReport', 'click', ()=>{
   const equipmentId = state.currentReportEquipment || 'Equipment';
   const period = document.getElementById('erPeriod').value;
   const periodTag = period==='custom'
     ? `${sanitizeForFilename(document.getElementById('erCustomFrom').value)}_to_${sanitizeForFilename(document.getElementById('erCustomTo').value)}`
     : (period==='all' ? `AllHistory_${new Date().getFullYear()}` : `${period}_${new Date().getFullYear()}`);
-  const originalTitle = document.title;
-  document.title = `${sanitizeForFilename(equipmentId)}_Equipment_Maintenance_Report_${periodTag}`;
-  const restore = ()=>{ document.title = originalTitle; window.removeEventListener('afterprint', restore); };
-  window.addEventListener('afterprint', restore);
-  window.print();
+  printOrExportPdf(`${sanitizeForFilename(equipmentId)}_Equipment_Maintenance_Report_${periodTag}`);
 });
 
 function fillFilterOptions(){
@@ -3065,8 +3078,8 @@ function renderEquipmentReport(){
       ${kpiTile('In progress', data.inProgress)}
       ${kpiTile('Rescheduled', data.rescheduled)}
       ${kpiTile('Completed', data.completed)}
-      ${kpiTile('Planned man-hours', data.plannedHrs)}
-      ${kpiTile('Actual man-hours', data.actualHrs)}
+      ${kpiTile('Planned man-hours', data.plannedHrs.toFixed(1))}
+      ${kpiTile('Actual man-hours', data.actualHrs.toFixed(1))}
       ${kpiTile('PM compliance', data.pmPct!=null ? fmtPct(data.pmPct) : 'N/A')}
       ${kpiTile('CM compliance', data.cmPct!=null ? fmtPct(data.cmPct) : 'N/A')}
     </div>`;
@@ -3993,7 +4006,7 @@ async function exportToExcel(){
 }
 on('btnExportExcel', 'click', exportToExcel);
 
-on('btnPrint', 'click', ()=> window.print());
+on('btnPrint', 'click', ()=> printOrExportPdf(`APSTT1_Progress_Report_${dateKey(new Date())}`));
 
 function setEntryOpen(section, open){
   const wrapper = section.querySelector('.accordion-body');
