@@ -724,7 +724,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <div class="section-title">Activity detail</div>
     <div class="card" style="margin-bottom:16px;">
-      <div class="chart-title">Open &amp; completed activities</div>
+      <div class="chart-title">All matching activities</div>
       <div class="chart-desc" id="planForTodayDesc">Activities for the latest report date. Click a row to see its remarks.</div>
       <div class="plan-table-wrap" style="margin-top:10px;">
         <table class="data-table" id="planTable">
@@ -2586,13 +2586,23 @@ function escapeHtml(s){
   return String(s==null? '' : s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function renderActivityDetail(f, targetKey, targetDate){
-  const rows = state.rows.filter(r=>matchFilters(r,f,{day:true}) && targetKey && r.reportDate && dateKey(r.reportDate)===targetKey);
+  // Uses the exact same matchFilters() cumulative logic as computeKPIs()/charts -
+  // this table must always show every activity (any status: Open, Pending,
+  // Rescheduled, Completed, ...) matching the active Scope/Discipline/Month/
+  // Week/Day/Status/Equipment filters, not just a single day's activities.
+  // "Day: All" means no date restriction at all, same as every other filter's
+  // "All" - only an explicitly picked Day narrows this to one date.
+  const rows = state.rows.filter(r=>matchFilters(r,f));
   const tbody = document.querySelector('#planTable tbody');
-  const statusDesc = f.status==='All' ? 'open and completed' : f.status.toLowerCase();
-  document.getElementById('planForTodayDesc').textContent = targetDate
-    ? `Showing ${statusDesc} activities for ${targetDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}. Click a row to see its remarks.`
-    : 'No data loaded yet.';
-  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">Nothing matches this date and filter selection.</td></tr>`; return; }
+  const statusDesc = f.status==='All' ? 'all' : f.status.toLowerCase();
+  if (!state.rows.length){
+    document.getElementById('planForTodayDesc').textContent = 'No data loaded yet.';
+  } else if (f.day!=='All' && targetDate){
+    document.getElementById('planForTodayDesc').textContent = `Showing ${statusDesc} activities for ${targetDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}. Click a row to see its remarks.`;
+  } else {
+    document.getElementById('planForTodayDesc').textContent = `Showing ${statusDesc} activities matching the current filters (${rows.length} found). Click a row to see its remarks.`;
+  }
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">No activities found for the selected filters.</td></tr>`; return; }
   const editableTable = !state.isSnapshot;
   tbody.innerHTML = rows.map((r,i)=>{
     const badgeClass = r.status==='Completed' ? 'badge-completed' : r.status==='In Progress' ? 'badge-progress' : r.status==='Rescheduled' ? 'badge-rescheduled' : 'badge-notstarted';
