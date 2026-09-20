@@ -118,6 +118,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .tab-btn.active{background:var(--bg);color:var(--text);border-color:var(--bg);}
   body.tab-progress .slide-kpi{display:none;}
   body.tab-kpi .slide-progress{display:none;}
+  .slide-admin{display:none;}
+  body.tab-admin .slide-admin{display:block;}
+  body.tab-admin .slide-progress, body.tab-admin .slide-kpi{display:none;}
+  body.tab-admin #dashboardBody, body.tab-admin #emptyState{display:none !important;}
   .slide-entry .section-title, .review-entry .section-title{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;}
   .accordion-caret{font-size:12px;color:var(--text2);}
   .accordion-body{display:none;}
@@ -128,7 +132,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .lock-modal-icon{width:56px;height:56px;border-radius:50%;background:linear-gradient(180deg,var(--blue),var(--navy));color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
   .lock-modal h2{font-size:18px;margin:0 0 6px;}
   .lock-modal p{font-size:13px;color:var(--text2);margin:0 0 14px;line-height:1.5;}
-  .lock-modal input[type="password"], .lock-modal input[type="email"]{width:100%;font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:10px;text-align:left;}
+  .lock-modal input[type="password"], .lock-modal input[type="email"], .lock-modal input[type="text"], .lock-modal select{width:100%;font:inherit;font-size:14px;padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:10px;text-align:left;}
   .lock-modal .field{text-align:left;margin-bottom:10px;}
   .lock-modal .field label{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:4px;}
   .lock-modal button.primary{width:100%;padding:11px;font-size:14px;border-radius:9px;}
@@ -229,6 +233,22 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sort-arrow{font-size:9px;margin-left:3px;opacity:.65;display:inline-block;width:8px;}
   .table-filter-input{width:100%;box-sizing:border-box;font:inherit;font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card-solid);color:var(--text);}
   .table-filter-input:focus{outline:none;border-color:var(--blue);}
+  .role-badge{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:20px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;margin-left:4px;}
+  .badge-status-active{background:#e2f6e9;color:#137a3d;}
+  .badge-status-invited{background:#fdf1d4;color:#8a6300;}
+  .badge-status-disabled{background:#fbe4e4;color:#a12f28;}
+  .cloud-conn-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+  .cloud-conn-dot.online{background:#2fbf6e;}
+  .cloud-conn-dot.offline{background:#e5484d;}
+  .admin-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+  .admin-subtab-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font:inherit;font-size:12.5px;color:var(--text2);}
+  .admin-subtab-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+  .admin-subtab-panel{display:none;}
+  .admin-subtab-panel.active{display:block;}
+  .perm-matrix{width:100%;border-collapse:collapse;font-size:12px;}
+  .perm-matrix th,.perm-matrix td{padding:7px 9px;border-bottom:1px solid var(--border);text-align:center;}
+  .perm-matrix th:first-child,.perm-matrix td:first-child{text-align:left;}
+  .perm-matrix thead th{color:var(--text2);font-weight:700;}
   .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;}
   .badge-completed{background:#e2f6e9;color:#137a3d;}
   .badge-progress{background:#fdf1d4;color:#8a6300;}
@@ -306,8 +326,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="subtle" id="btnTheme" style="border:1px solid rgba(255,255,255,.25);" title="Change theme">&#127912; <span id="btnThemeLabel">Theme</span> &#9662;</button>
       <div class="theme-menu" id="themeMenu"></div>
     </div>
+    <span id="cloudConnIndicator" style="display:none;align-items:center;font-size:12px;color:rgba(255,255,255,.85);" title="">
+      <span class="cloud-conn-dot offline" id="cloudConnDot"></span><span id="cloudConnText">Offline</span>
+    </span>
+    <span id="lastSyncedIndicator" style="display:none;font-size:11.5px;color:rgba(255,255,255,.65);">Last synced: -</span>
     <span id="signedInAs" style="display:none;align-items:center;gap:6px;font-size:12.5px;">
-      &#128100; <span id="signedInAsEmail"></span>
+      &#128100; <span id="signedInAsEmail"></span><span class="role-badge" id="signedInAsRole" style="display:none;"></span>
       <button class="subtle" id="btnCloudSignOut" style="border:1px solid rgba(255,255,255,.25);padding:4px 8px;font-size:11.5px;">Sign out</button>
     </span>
   </div>
@@ -315,6 +339,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <div class="tabbar" id="tabBar">
   <button class="tab-btn active" data-tab="progress">Progress Dashboard</button>
   <button class="tab-btn" data-tab="kpi">KPI Monitoring</button>
+  <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none;">Admin Panel</button>
 </div>
 </div>
 
@@ -337,18 +362,44 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <div id="cloudLoginBackdrop" class="lock-modal-backdrop" style="background:var(--bg);"></div>
 <div id="cloudLoginModal" class="lock-modal" role="dialog" aria-modal="true">
   <div class="lock-modal-icon">&#128100;</div>
-  <h2>Sign in required</h2>
-  <p>Sign in with the account your admin set up for you to access this dashboard. Every activity you add or change will be recorded under your name.</p>
-  <div class="field">
-    <label>Email</label>
-    <input type="email" id="cloudLoginEmail" autocomplete="username">
+  <div id="cloudLoginViewSignin">
+    <h2>Sign in required</h2>
+    <p>Sign in with your own account to access this dashboard. Every activity you add or change is recorded under your name.</p>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="cloudLoginEmail" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="cloudLoginPassword" autocomplete="current-password">
+    </div>
+    <div class="lock-modal-error" id="cloudLoginError"></div>
+    <button class="primary" id="btnCloudLogin">Sign in</button>
+    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:12.5px;">
+      <a href="#" id="linkShowSignup" style="color:var(--blue);">New team member? Create account</a>
+      <a href="#" id="linkShowReset" style="color:var(--blue);">Forgot password?</a>
+    </div>
   </div>
-  <div class="field">
-    <label>Password</label>
-    <input type="password" id="cloudLoginPassword" autocomplete="current-password">
+  <div id="cloudLoginViewSignup" style="display:none;">
+    <h2>Create your account</h2>
+    <p>Use the exact email your administrator authorized in Admin Panel &rarr; Users. If it hasn't been added yet, ask them to add you first.</p>
+    <div class="field"><label>Full name</label><input type="text" id="signupFullName" autocomplete="name"></div>
+    <div class="field"><label>Email</label><input type="email" id="signupEmail" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="signupPassword" autocomplete="new-password"></div>
+    <div class="field"><label>Confirm password</label><input type="password" id="signupPasswordConfirm" autocomplete="new-password"></div>
+    <div class="lock-modal-error" id="signupError"></div>
+    <button class="primary" id="btnCloudSignup">Create account</button>
+    <div style="margin-top:12px;font-size:12.5px;"><a href="#" id="linkShowSigninFromSignup" style="color:var(--blue);">&larr; Back to sign in</a></div>
   </div>
-  <div class="lock-modal-error" id="cloudLoginError"></div>
-  <button class="primary" id="btnCloudLogin">Sign in</button>
+  <div id="cloudLoginViewReset" style="display:none;">
+    <h2>Reset your password</h2>
+    <p>Enter your account email and we'll send a password reset link to that inbox.</p>
+    <div class="field"><label>Email</label><input type="email" id="resetEmail" autocomplete="username"></div>
+    <div class="lock-modal-error" id="resetError"></div>
+    <div class="lock-modal-status" id="resetStatus"></div>
+    <button class="primary" id="btnCloudReset">Send reset link</button>
+    <div style="margin-top:12px;font-size:12.5px;"><a href="#" id="linkShowSigninFromReset" style="color:var(--blue);">&larr; Back to sign in</a></div>
+  </div>
 </div>
 
 <div id="equipmentReportOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1500;overflow-y:auto;">
@@ -896,6 +947,72 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </div>
     </div>
   </div>
+
+<div id="adminPanelSection" class="slide-admin">
+  <div class="section-title">Admin Control Panel</div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="admin-tabs" id="adminSubtabBar">
+      <button class="admin-subtab-btn active" data-admin-tab="users">Users</button>
+      <button class="admin-subtab-btn" data-admin-tab="roles">Roles &amp; Permissions</button>
+      <button class="admin-subtab-btn" data-admin-tab="audit">Audit Log</button>
+      <button class="admin-subtab-btn" data-admin-tab="status">Cloud Status</button>
+    </div>
+
+    <div class="admin-subtab-panel active" id="adminTabUsers">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;max-width:560px;">Add a user by email to authorize them. There's no email server behind this dashboard, so nothing gets emailed automatically - tell them to open the app, click "New team member? Create account" on the sign-in screen, and use this exact email to activate their access.</div>
+        <button class="primary" id="btnShowAddUser" style="font-size:12.5px;padding:7px 12px;">+ Add User</button>
+      </div>
+      <div id="addUserForm" style="display:none;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px;background:var(--bg);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+          <div class="field"><label>Full name</label><input type="text" id="auFullName"></div>
+          <div class="field"><label>Email</label><input type="email" id="auEmail"></div>
+          <div class="field"><label>Employee ID</label><input type="text" id="auEmployeeId"></div>
+          <div class="field"><label>Department</label><input type="text" id="auDepartment"></div>
+          <div class="field"><label>Role</label><select id="auRole"></select></div>
+        </div>
+        <div class="lock-modal-error" id="addUserError" style="text-align:left;min-height:auto;"></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="primary" id="btnSaveNewUser">Save user</button>
+          <button id="btnCancelAddUser" style="border:1px solid var(--border);">Cancel</button>
+        </div>
+      </div>
+      <div class="plan-table-wrap" style="max-height:420px;">
+        <table class="data-table" id="usersTable">
+          <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-subtab-panel" id="adminTabRoles">
+      <div class="chart-desc" style="margin-bottom:10px;">Only Super Admin can change these. Permissions are enforced here (hiding controls) and, once you publish the matching Firestore rules, on the server too.</div>
+      <div class="plan-table-wrap" style="max-height:460px;">
+        <table class="perm-matrix" id="permMatrixTable">
+          <thead><tr><th>Permission</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button class="primary" id="btnSavePermissions" style="margin-top:12px;">Save permissions</button>
+      <span class="lock-modal-status" id="permSaveStatus"></span>
+    </div>
+
+    <div class="admin-subtab-panel" id="adminTabAudit">
+      <div class="chart-desc" style="margin-bottom:10px;">Most recent 200 actions across all users.</div>
+      <button class="subtle" id="btnRefreshAudit" style="border:1px solid var(--border);margin-bottom:10px;">Refresh</button>
+      <div class="plan-table-wrap" style="max-height:460px;">
+        <table class="data-table" id="auditLogTable">
+          <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Record</th><th>Details</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="admin-subtab-panel" id="adminTabStatus">
+      <div id="cloudStatusBody" style="font-size:13px;line-height:2;"></div>
+    </div>
+  </div>
+</div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -1175,6 +1292,7 @@ function initCloudSync(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     cloudDb = firebase.firestore();
+    try{ cloudDb.enablePersistence({ synchronizeTabs:true }).catch(e=> console.warn('Offline persistence unavailable:', e.message)); }catch(e){}
     firebase.auth().onAuthStateChanged(user=>{
       if (user){
         currentCloudUser = user;
@@ -1182,17 +1300,33 @@ function initCloudSync(){
         showCloudLogin(false);
         updateSignedInIndicator(user);
         updateCloudStatus('Connecting to cloud backup...');
+        startConnectivityProbe();
+        setCloudConnected(isOnlineNow);
+        loadUserProfileAndPermissions(user);
         pullCloudActivities();
         pullEquipmentImages();
       } else {
         currentCloudUser = null;
         cloudReady = false;
+        currentUserProfile = null;
         updateSignedInIndicator(null);
+        updateSignedInRoleBadge();
         updateCloudStatus('');
+        const adminTab = document.getElementById('tabBtnAdmin');
+        if (adminTab) adminTab.style.display = 'none';
+        const connWrap = document.getElementById('cloudConnIndicator');
+        if (connWrap) connWrap.style.display = 'none';
+        const syncEl = document.getElementById('lastSyncedIndicator');
+        if (syncEl) syncEl.style.display = 'none';
         showCloudLogin(true);
       }
     });
   }catch(e){ updateCloudStatus('Cloud backup unavailable.'); console.warn('Cloud init failed:', e.message); }
+}
+function setLoginModalView(view){
+  document.getElementById('cloudLoginViewSignin').style.display = view==='signin' ? '' : 'none';
+  document.getElementById('cloudLoginViewSignup').style.display = view==='signup' ? '' : 'none';
+  document.getElementById('cloudLoginViewReset').style.display = view==='reset' ? '' : 'none';
 }
 on('btnCloudLogin', 'click', ()=>{
   const email = document.getElementById('cloudLoginEmail').value.trim();
@@ -1206,6 +1340,43 @@ on('btnCloudLogin', 'click', ()=>{
 });
 on('cloudLoginPassword', 'keydown', (e)=>{ if (e.key==='Enter') document.getElementById('btnCloudLogin').click(); });
 on('btnCloudSignOut', 'click', ()=>{ firebase.auth().signOut(); });
+on('linkShowSignup', 'click', (e)=>{ e.preventDefault(); setLoginModalView('signup'); });
+on('linkShowReset', 'click', (e)=>{ e.preventDefault(); setLoginModalView('reset'); });
+on('linkShowSigninFromSignup', 'click', (e)=>{ e.preventDefault(); setLoginModalView('signin'); });
+on('linkShowSigninFromReset', 'click', (e)=>{ e.preventDefault(); setLoginModalView('signin'); });
+on('btnCloudSignup', 'click', ()=>{
+  const fullName = document.getElementById('signupFullName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const p1 = document.getElementById('signupPassword').value;
+  const p2 = document.getElementById('signupPasswordConfirm').value;
+  const errEl = document.getElementById('signupError');
+  errEl.textContent = '';
+  if (!fullName || !email || !p1){ errEl.textContent = 'Fill in your name, email and a password.'; return; }
+  if (p1.length < 6){ errEl.textContent = 'Use at least 6 characters.'; return; }
+  if (p1 !== p2){ errEl.textContent = 'Passwords do not match.'; return; }
+  firebase.auth().createUserWithEmailAndPassword(email, p1).then(cred=>{
+    return cred.user.updateProfile({ displayName: fullName }).catch(()=>{}).then(()=>{
+      // The allow-list check happens in loadUserProfileAndPermissions() via
+      // onAuthStateChanged. Stash the typed name so it's used if this turns
+      // out to be a brand-new, not-yet-onboarded profile.
+      window.__pendingSignupName = fullName;
+    });
+  }).catch(e=>{
+    errEl.textContent = humanizeAuthError(e.code) || e.message;
+  });
+});
+on('btnCloudReset', 'click', ()=>{
+  const email = document.getElementById('resetEmail').value.trim();
+  const errEl = document.getElementById('resetError');
+  const statusEl = document.getElementById('resetStatus');
+  errEl.textContent = ''; statusEl.textContent = '';
+  if (!email){ errEl.textContent = 'Enter your account email.'; return; }
+  firebase.auth().sendPasswordResetEmail(email).then(()=>{
+    statusEl.textContent = 'If that email has an account, a reset link is on its way.';
+  }).catch(e=>{
+    errEl.textContent = humanizeAuthError(e.code) || e.message;
+  });
+});
 function cloudRowPayload(row){
   const s = serializeRow(row);
   delete s.sheetRow; // meaningless outside the browser that loaded that Excel file
@@ -1213,13 +1384,13 @@ function cloudRowPayload(row){
 }
 function saveActivityToCloud(row){
   if (!cloudReady || !cloudDb || !row.id) return;
-  cloudDb.collection(CLOUD_COLLECTION).doc(row.id).set(cloudRowPayload(row)).catch(e=>{
+  cloudDb.collection(CLOUD_COLLECTION).doc(row.id).set(cloudRowPayload(row)).then(markSynced).catch(e=>{
     console.warn('Cloud save failed for', row.id, e.message);
   });
 }
 function deleteActivityFromCloud(id){
   if (!cloudReady || !cloudDb || !id) return;
-  cloudDb.collection(CLOUD_COLLECTION).doc(id).delete().catch(e=>{
+  cloudDb.collection(CLOUD_COLLECTION).doc(id).delete().then(markSynced).catch(e=>{
     console.warn('Cloud delete failed for', id, e.message);
   });
 }
@@ -1252,6 +1423,7 @@ function pullCloudActivities(){
         render();
       }
     }
+    markSynced();
     pushAllLocalActivitiesToCloud();
   }).catch(e=>{
     updateCloudStatus('Cloud backup unavailable.');
@@ -1267,12 +1439,13 @@ function pushAllLocalActivitiesToCloud(){
       if (row.id) allRows.push(row);
     });
   });
-  if (!allRows.length){ updateCloudStatus('Cloud backup connected.'); return; }
+  if (!allRows.length){ updateCloudStatus('Cloud backup connected.'); markSynced(); return; }
   const CHUNK = 300;
   let i = 0;
   function nextChunk(){
     if (i >= allRows.length){
       updateCloudStatus(`Cloud backup: ${allRows.length} activit${allRows.length===1?'y':'ies'} backed up.`);
+      markSynced();
       return;
     }
     const batch = cloudDb.batch();
@@ -1303,6 +1476,7 @@ function addEquipmentImage(equipmentId, image){
   state.history.equipmentImages[equipmentId].push(image);
   saveHistory(state.history);
   saveEquipmentImageToCloud(equipmentId, image);
+  logAudit('Added Equipment Image', 'EquipmentImage', image.id, null, { equipmentId, title: image.title||'' });
 }
 function updateEquipmentImage(equipmentId, imageId, patch){
   const arr = equipmentImagesFor(equipmentId);
@@ -1318,6 +1492,7 @@ function deleteEquipmentImage(equipmentId, imageId){
   if (idx>=0) arr.splice(idx,1);
   saveHistory(state.history);
   deleteEquipmentImageFromCloud(imageId);
+  logAudit('Deleted Equipment Image', 'EquipmentImage', imageId, { equipmentId }, null);
 }
 function saveEquipmentImageToCloud(equipmentId, image){
   if (!cloudReady || !cloudDb) return;
@@ -1353,6 +1528,440 @@ function pullEquipmentImages(){
     });
     if (added) saveHistory(state.history);
   }).catch(e=> console.warn('Equipment image pull failed:', e.message));
+}
+
+// --- Roles, permissions, users, audit trail -----------------------------
+// This app is a single static HTML file talking to Firestore directly from
+// the browser - there is no backend/Cloud Functions project behind it. That
+// rules out anything needing Firebase's Admin SDK: an admin here can't
+// truly create/disable someone else's sign-in credentials or send them a
+// real invitation email. Instead, an admin authorizes an email in the
+// `users` collection (status "invited"); that person then self-registers
+// their own password via "Create account", and the app only lets the
+// sign-up through if that email is on the list. "Disable" flips a Firestore
+// flag that both the client and (once you publish the matching rules) the
+// server honor - it can't kill an already-open browser tab's session
+// instantly, but it blocks every further read/write and signs them out the
+// next time the app checks (on load, and after every re-auth).
+const ROLES = ['SuperAdmin','Admin','Engineer','Supervisor','Viewer'];
+const PERMISSION_KEYS = [
+  ['addActivity','Add activity'],
+  ['editActivity','Edit activity'],
+  ['deleteActivity','Delete activity'],
+  ['changeStatus','Change activity status'],
+  ['rescheduleActivity','Reschedule activity'],
+  ['viewReports','View reports'],
+  ['buildEquipmentReport','Build equipment report'],
+  ['exportPdf','Export / print PDF'],
+  ['uploadImages','Upload equipment images'],
+  ['deleteImages','Delete equipment images'],
+  ['importExcel','Import Excel'],
+  ['exportExcel','Export Excel'],
+  ['manageUsers','Manage users & permissions']
+];
+function allPerms(v){ const o={}; PERMISSION_KEYS.forEach(([k])=>{ o[k]=v; }); return o; }
+const DEFAULT_ROLE_PERMISSIONS = {
+  SuperAdmin: allPerms(true),
+  Admin: Object.assign(allPerms(true), {}),
+  Engineer: Object.assign(allPerms(false), { addActivity:true, editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, uploadImages:true, importExcel:true, exportExcel:true }),
+  Supervisor: Object.assign(allPerms(false), { editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, exportExcel:true }),
+  Viewer: Object.assign(allPerms(false), { viewReports:true, exportPdf:true })
+};
+const USERS_COLLECTION = 'users';
+const ROLE_PERMISSIONS_COLLECTION = 'rolePermissions';
+const AUDIT_LOG_COLLECTION = 'auditLog';
+
+let currentUserProfile = null; // {email, fullName, employeeId, department, role, status, uid, ...}
+let rolePermissionsCache = {}; // {role: {permKey: bool}}
+let lastSyncedAt = null;
+let isOnlineNow = navigator.onLine;
+
+function normalizeEmailKey(email){ return String(email||'').trim().toLowerCase(); }
+function hasPermission(key){
+  if (!currentUserProfile || currentUserProfile.status !== 'active') return false;
+  if (currentUserProfile.role === 'SuperAdmin') return true;
+  const perms = rolePermissionsCache[currentUserProfile.role] || DEFAULT_ROLE_PERMISSIONS[currentUserProfile.role] || {};
+  return !!perms[key];
+}
+function isAdminRole(){ return !!currentUserProfile && currentUserProfile.status==='active' && (currentUserProfile.role==='SuperAdmin' || hasPermission('manageUsers')); }
+
+function logAudit(action, recordType, recordId, oldValue, newValue){
+  if (!cloudReady || !cloudDb) return;
+  try{
+    cloudDb.collection(AUDIT_LOG_COLLECTION).add({
+      ts: new Date().toISOString(),
+      userEmail: currentCloudUser ? currentCloudUser.email : 'unknown',
+      action, recordType,
+      recordId: recordId!=null ? String(recordId) : '',
+      oldValue: oldValue!=null ? JSON.stringify(oldValue).slice(0,4000) : '',
+      newValue: newValue!=null ? JSON.stringify(newValue).slice(0,4000) : '',
+      userAgent: (navigator.userAgent||'').slice(0,300)
+    }).catch(e=> console.warn('Audit log write failed:', e.message));
+  }catch(e){ console.warn('Audit log write failed:', e.message); }
+}
+
+function ensureDefaultRolePermissionsSeeded(){
+  if (!cloudReady || !cloudDb) return;
+  ROLES.forEach(role=>{
+    const ref = cloudDb.collection(ROLE_PERMISSIONS_COLLECTION).doc(role);
+    ref.get().then(snap=>{
+      if (!snap.exists) ref.set(DEFAULT_ROLE_PERMISSIONS[role]).catch(()=>{});
+    }).catch(()=>{});
+  });
+}
+function loadRolePermissions(){
+  if (!cloudDb) return Promise.resolve();
+  return cloudDb.collection(ROLE_PERMISSIONS_COLLECTION).get().then(snapshot=>{
+    const cache = {};
+    snapshot.forEach(doc=>{ cache[doc.id] = doc.data(); });
+    rolePermissionsCache = cache;
+  }).catch(e=> console.warn('Role permissions load failed:', e.message));
+}
+
+function updateSignedInRoleBadge(){
+  const badge = document.getElementById('signedInAsRole');
+  if (!badge) return;
+  if (currentUserProfile){
+    badge.style.display = 'inline-block';
+    badge.textContent = currentUserProfile.status==='active' ? currentUserProfile.role : (currentUserProfile.status==='invited' ? 'Pending' : 'Disabled');
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function applyRolePermissionUI(){
+  updateSignedInRoleBadge();
+  const adminTab = document.getElementById('tabBtnAdmin');
+  if (adminTab) adminTab.style.display = isAdminRole() ? '' : 'none';
+  if (!isAdminRole() && document.body.classList.contains('tab-admin')){
+    const progressTab = document.querySelector('.tab-btn[data-tab="progress"]');
+    if (progressTab) progressTab.click();
+  }
+  if (currentUserProfile){
+    // A per-user role is active - it now drives edit access instead of the
+    // old shared "editor password" (which predates individual logins).
+    state.isUnlocked = hasPermission('editActivity') || hasPermission('addActivity') || currentUserProfile.role==='SuperAdmin';
+    applyLockState();
+    const lockBtn = document.getElementById('btnLockToggle');
+    if (lockBtn) lockBtn.style.display = 'none';
+  }
+  const setVis = (id, ok) => { const el = document.getElementById(id); if (el) el.style.display = ok ? '' : 'none'; };
+  if (currentUserProfile){
+    setVis('btnLoad', hasPermission('importExcel'));
+    setVis('btnRefresh', hasPermission('importExcel'));
+    setVis('btnExportExcel', hasPermission('exportExcel'));
+    setVis('btnPrint', hasPermission('exportPdf'));
+  }
+  if (state.rows.length) render();
+}
+
+// A lightweight Firestore "connectivity probe": listening on any query's
+// snapshot metadata tells you whether that snapshot came from the local
+// cache or a live server round-trip, which is the closest thing the
+// client SDK exposes to a real online/offline signal for Firestore itself
+// (as opposed to just the browser's navigator.onLine, which doesn't know
+// if Firestore specifically is reachable).
+let connectivityUnsub = null;
+function startConnectivityProbe(){
+  if (!cloudDb || connectivityUnsub) return;
+  connectivityUnsub = cloudDb.collection('_connectivity').doc('probe')
+    .onSnapshot({ includeMetadataChanges: true }, snap=>{
+      setCloudConnected(!snap.metadata.fromCache);
+    }, ()=>{ setCloudConnected(false); });
+}
+function setCloudConnected(online){
+  isOnlineNow = online;
+  const dot = document.getElementById('cloudConnDot');
+  const text = document.getElementById('cloudConnText');
+  const wrap = document.getElementById('cloudConnIndicator');
+  if (wrap) wrap.style.display = currentCloudUser ? 'inline-flex' : 'none';
+  if (dot) dot.className = 'cloud-conn-dot ' + (online ? 'online' : 'offline');
+  if (text) text.textContent = online ? 'Connected' : 'Offline';
+}
+function markSynced(){
+  lastSyncedAt = new Date();
+  const el = document.getElementById('lastSyncedIndicator');
+  if (el){
+    el.style.display = currentCloudUser ? '' : 'none';
+    el.textContent = 'Last synced: ' + lastSyncedAt.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  }
+}
+window.addEventListener('online', ()=> setCloudConnected(true));
+window.addEventListener('offline', ()=> setCloudConnected(false));
+
+// --- Allow-list / bootstrap login flow -----------------------------------
+function loadUserProfileAndPermissions(user){
+  if (!cloudDb || !user || !user.email) return;
+  const key = normalizeEmailKey(user.email);
+  const ref = cloudDb.collection(USERS_COLLECTION).doc(key);
+  ref.get().then(snap=>{
+    if (snap.exists){
+      const profile = snap.data();
+      if (profile.status === 'disabled'){
+        alert('Your access has been disabled. Contact your administrator.');
+        firebase.auth().signOut();
+        return;
+      }
+      const updates = { lastLoginAt: new Date().toISOString() };
+      if (profile.status === 'invited'){
+        updates.status = 'active';
+        updates.uid = user.uid;
+        updates.activatedAt = new Date().toISOString();
+      }
+      ref.set(updates, { merge:true }).catch(()=>{});
+      currentUserProfile = Object.assign({ email: key }, profile, updates);
+      return loadRolePermissions().then(()=>{ ensureDefaultRolePermissionsSeeded(); applyRolePermissionUI(); });
+    }
+    // No profile doc yet. Two cases: this is the very first person ever to
+    // sign in (bootstrap them as Super Admin so *someone* can run the Admin
+    // Panel), or the `users` collection is already in use and this account
+    // simply hasn't been onboarded into the new access system yet (this
+    // covers every account created directly in the Firebase console before
+    // this feature existed) - bridge them in as a safe, minimal Viewer
+    // rather than locking them out, until a Super Admin assigns their real
+    // role from Admin Panel -> Users.
+    return cloudDb.collection(USERS_COLLECTION).limit(1).get().then(collSnap=>{
+      const isFirstEver = collSnap.empty;
+      const profile = {
+        email: key,
+        fullName: window.__pendingSignupName || user.displayName || user.email.split('@')[0],
+        employeeId: '',
+        department: '',
+        role: isFirstEver ? 'SuperAdmin' : 'Viewer',
+        status: 'active',
+        uid: user.uid,
+        createdAt: new Date().toISOString(),
+        createdBy: isFirstEver ? key : 'system:auto-bridge',
+        activatedAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      return ref.set(profile).then(()=>{
+        currentUserProfile = profile;
+        if (isFirstEver) alert('Welcome! Since this is the first sign-in on this dashboard, your account has been set up as Super Admin. Open Admin Panel -> Users to add and manage your team.');
+        return loadRolePermissions().then(()=>{ ensureDefaultRolePermissionsSeeded(); applyRolePermissionUI(); });
+      });
+    });
+  }).catch(e=> console.warn('User profile load failed:', e.message));
+}
+
+// --- Admin Control Panel: Users, Roles & Permissions, Audit Log, Status --
+let editingUserKey = null;
+function roleOptionsHtml(selected){
+  return ROLES.map(r=>`<option value="${r}" ${r===selected?'selected':''}>${r}</option>`).join('');
+}
+function resetAddUserForm(){
+  editingUserKey = null;
+  document.getElementById('auFullName').value = '';
+  document.getElementById('auEmail').value = '';
+  document.getElementById('auEmail').disabled = false;
+  document.getElementById('auEmployeeId').value = '';
+  document.getElementById('auDepartment').value = '';
+  document.getElementById('auRole').innerHTML = roleOptionsHtml('Viewer');
+  document.getElementById('addUserError').textContent = '';
+  document.getElementById('btnSaveNewUser').textContent = 'Save user';
+}
+on('btnShowAddUser', 'click', ()=>{
+  resetAddUserForm();
+  document.getElementById('addUserForm').style.display = '';
+});
+on('btnCancelAddUser', 'click', ()=>{
+  document.getElementById('addUserForm').style.display = 'none';
+});
+on('btnSaveNewUser', 'click', ()=>{
+  const fullName = document.getElementById('auFullName').value.trim();
+  const email = normalizeEmailKey(document.getElementById('auEmail').value);
+  const employeeId = document.getElementById('auEmployeeId').value.trim();
+  const department = document.getElementById('auDepartment').value.trim();
+  const role = document.getElementById('auRole').value;
+  const errEl = document.getElementById('addUserError');
+  errEl.textContent = '';
+  if (!fullName || !email){ errEl.textContent = 'Full name and email are required.'; return; }
+  if (!cloudDb){ errEl.textContent = 'Cloud database is not available right now.'; return; }
+  const ref = cloudDb.collection(USERS_COLLECTION).doc(email);
+  if (editingUserKey){
+    const patch = { fullName, employeeId, department, role };
+    ref.set(patch, { merge:true }).then(()=>{
+      logAudit('Updated User', 'User', email, null, patch);
+      document.getElementById('addUserForm').style.display = 'none';
+      renderUsersTable();
+    }).catch(e=>{ errEl.textContent = e.message; });
+    return;
+  }
+  ref.get().then(snap=>{
+    if (snap.exists){ errEl.textContent = 'That email is already in the system.'; return; }
+    const profile = {
+      email, fullName, employeeId, department, role,
+      status: 'invited',
+      createdAt: new Date().toISOString(),
+      createdBy: currentCloudUser ? currentCloudUser.email : 'unknown',
+      uid: null
+    };
+    return ref.set(profile).then(()=>{
+      logAudit('Added User', 'User', email, null, { fullName, role });
+      document.getElementById('addUserForm').style.display = 'none';
+      renderUsersTable();
+    });
+  }).catch(e=>{ errEl.textContent = e.message; });
+});
+function userStatusBadge(status){
+  const cls = status==='active' ? 'badge-status-active' : status==='invited' ? 'badge-status-invited' : 'badge-status-disabled';
+  const label = status==='active' ? 'Active' : status==='invited' ? 'Invited' : 'Disabled';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+function renderUsersTable(){
+  const tbody = document.querySelector('#usersTable tbody');
+  if (!tbody || !cloudDb) return;
+  cloudDb.collection(USERS_COLLECTION).get().then(snapshot=>{
+    const users = [];
+    snapshot.forEach(doc=> users.push(doc.data()));
+    users.sort((a,b)=> (a.fullName||'').localeCompare(b.fullName||''));
+    if (!users.length){ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text2)">No users yet.</td></tr>`; return; }
+    const canManage = hasPermission('manageUsers') || (currentUserProfile && currentUserProfile.role==='SuperAdmin');
+    tbody.innerHTML = users.map(u=>{
+      const lastLogin = u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+      const isSelf = currentCloudUser && normalizeEmailKey(currentCloudUser.email)===u.email;
+      const actions = canManage ? `
+        <button data-uedit="${u.email}" style="padding:3px 8px;font-size:11px;">Edit</button>
+        ${u.status==='disabled'
+          ? `<button data-uenable="${u.email}" style="padding:3px 8px;font-size:11px;color:var(--blue);">Enable</button>`
+          : `<button data-udisable="${u.email}" style="padding:3px 8px;font-size:11px;color:var(--red);" ${isSelf?'disabled title="You cannot disable your own account"':''}>Disable</button>`}
+        <button data-ureset="${u.email}" style="padding:3px 8px;font-size:11px;">Reset password</button>
+      ` : '';
+      return `<tr>
+        <td>${escapeHtml(u.fullName||'-')}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td>${escapeHtml(u.department||'-')}</td>
+        <td>${escapeHtml(u.role)}</td>
+        <td>${userStatusBadge(u.status)}</td>
+        <td>${lastLogin}</td>
+        <td style="white-space:nowrap;">${actions}</td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('[data-uedit]').forEach(btn=> btn.addEventListener('click', ()=> startEditUser(btn.getAttribute('data-uedit'), users)));
+    tbody.querySelectorAll('[data-udisable]').forEach(btn=> btn.addEventListener('click', ()=> setUserStatus(btn.getAttribute('data-udisable'), 'disabled')));
+    tbody.querySelectorAll('[data-uenable]').forEach(btn=> btn.addEventListener('click', ()=> setUserStatus(btn.getAttribute('data-uenable'), 'active')));
+    tbody.querySelectorAll('[data-ureset]').forEach(btn=> btn.addEventListener('click', ()=> resetUserPassword(btn.getAttribute('data-ureset'))));
+  }).catch(e=>{ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--red)">Could not load users: ${escapeHtml(e.message)}</td></tr>`; });
+}
+function startEditUser(email, users){
+  const u = users.find(x=>x.email===email);
+  if (!u) return;
+  editingUserKey = email;
+  document.getElementById('auFullName').value = u.fullName||'';
+  document.getElementById('auEmail').value = u.email;
+  document.getElementById('auEmail').disabled = true;
+  document.getElementById('auEmployeeId').value = u.employeeId||'';
+  document.getElementById('auDepartment').value = u.department||'';
+  document.getElementById('auRole').innerHTML = roleOptionsHtml(u.role);
+  document.getElementById('btnSaveNewUser').textContent = 'Save changes';
+  document.getElementById('addUserForm').style.display = '';
+  document.getElementById('addUserForm').scrollIntoView({behavior:'smooth', block:'center'});
+}
+function setUserStatus(email, status){
+  if (!cloudDb) return;
+  if (status==='disabled' && currentCloudUser && normalizeEmailKey(currentCloudUser.email)===email){
+    alert('You cannot disable your own account.');
+    return;
+  }
+  if (status==='disabled' && !confirm(`Disable access for ${email}? Their historical activity records are kept - only their ability to sign in and make changes is removed.`)) return;
+  cloudDb.collection(USERS_COLLECTION).doc(email).set({ status }, { merge:true }).then(()=>{
+    logAudit(status==='disabled' ? 'Disabled User' : 'Enabled User', 'User', email, null, { status });
+    renderUsersTable();
+  }).catch(e=> alert('Could not update status: '+e.message));
+}
+function resetUserPassword(email){
+  firebase.auth().sendPasswordResetEmail(email).then(()=>{
+    alert(`A password reset link has been sent to ${email}.`);
+    logAudit('Reset Password Requested', 'User', email, null, null);
+  }).catch(e=> alert('Could not send reset email: '+(humanizeAuthError(e.code)||e.message)));
+}
+
+function renderPermMatrix(){
+  const thead = document.querySelector('#permMatrixTable thead tr');
+  const tbody = document.querySelector('#permMatrixTable tbody');
+  if (!thead || !tbody) return;
+  thead.innerHTML = '<th>Permission</th>' + ROLES.map(r=>`<th>${r}</th>`).join('');
+  const canEdit = hasPermission('manageUsers') || (currentUserProfile && currentUserProfile.role==='SuperAdmin');
+  tbody.innerHTML = PERMISSION_KEYS.map(([key,label])=>{
+    return `<tr><td>${escapeHtml(label)}</td>` + ROLES.map(role=>{
+      const isSuperAdmin = role==='SuperAdmin';
+      const perms = rolePermissionsCache[role] || DEFAULT_ROLE_PERMISSIONS[role] || {};
+      const checked = isSuperAdmin ? true : !!perms[key];
+      const disabled = isSuperAdmin || !canEdit;
+      return `<td><input type="checkbox" data-perm-role="${role}" data-perm-key="${key}" ${checked?'checked':''} ${disabled?'disabled':''}></td>`;
+    }).join('') + '</tr>';
+  }).join('');
+  document.getElementById('btnSavePermissions').style.display = canEdit ? '' : 'none';
+}
+on('btnSavePermissions', 'click', ()=>{
+  if (!cloudDb) return;
+  const updated = {};
+  ROLES.forEach(role=>{ if (role!=='SuperAdmin') updated[role] = {}; });
+  document.querySelectorAll('#permMatrixTable input[type="checkbox"]').forEach(cb=>{
+    const role = cb.getAttribute('data-perm-role');
+    if (role==='SuperAdmin') return;
+    updated[role][cb.getAttribute('data-perm-key')] = cb.checked;
+  });
+  const statusEl = document.getElementById('permSaveStatus');
+  statusEl.textContent = 'Saving...';
+  const batch = cloudDb.batch();
+  Object.keys(updated).forEach(role=>{
+    batch.set(cloudDb.collection(ROLE_PERMISSIONS_COLLECTION).doc(role), updated[role]);
+  });
+  batch.commit().then(()=>{
+    rolePermissionsCache = Object.assign({}, rolePermissionsCache, updated);
+    statusEl.textContent = 'Saved.';
+    logAudit('Updated Role Permissions', 'RolePermissions', 'all', null, updated);
+    applyRolePermissionUI();
+    setTimeout(()=>{ statusEl.textContent=''; }, 3000);
+  }).catch(e=>{ statusEl.textContent = 'Failed: '+e.message; });
+});
+
+function renderAuditLog(){
+  const tbody = document.querySelector('#auditLogTable tbody');
+  if (!tbody || !cloudDb) return;
+  tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text2)">Loading...</td></tr>`;
+  cloudDb.collection(AUDIT_LOG_COLLECTION).orderBy('ts','desc').limit(200).get().then(snapshot=>{
+    if (snapshot.empty){ tbody.innerHTML = `<tr><td colspan="5" style="color:var(--text2)">No activity logged yet.</td></tr>`; return; }
+    tbody.innerHTML = snapshot.docs.map(doc=>{
+      const d = doc.data();
+      const when = d.ts ? new Date(d.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+      const details = [d.oldValue, d.newValue].filter(Boolean).join(' -> ');
+      return `<tr><td>${when}</td><td>${escapeHtml(d.userEmail||'-')}</td><td>${escapeHtml(d.action||'-')}</td><td>${escapeHtml(d.recordType||'')} ${escapeHtml(d.recordId||'')}</td><td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(details)}">${escapeHtml(details)}</td></tr>`;
+    }).join('');
+  }).catch(e=>{
+    const hint = /index/i.test(e.message) ? ' (open the browser console - Firestore usually prints a direct link to create the missing index)' : '';
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--red)">Could not load audit log: ${escapeHtml(e.message)}${hint}</td></tr>`;
+  });
+}
+on('btnRefreshAudit', 'click', renderAuditLog);
+
+function renderCloudStatus(){
+  const el = document.getElementById('cloudStatusBody');
+  if (!el) return;
+  const equipmentCount = Object.keys(state.history.equipmentImages||{}).length;
+  const totalImages = Object.values(state.history.equipmentImages||{}).reduce((s,arr)=>s+(arr?arr.length:0),0);
+  el.innerHTML = `
+    <div>Cloud connection: ${isOnlineNow ? '<b style="color:#2fbf6e;">Connected</b>' : '<b style="color:#e5484d;">Offline</b>'}</div>
+    <div>Last synced: ${lastSyncedAt ? lastSyncedAt.toLocaleString() : 'Not yet this session'}</div>
+    <div>Activities loaded in this browser: ${state.rows.length}</div>
+    <div>Equipment with images: ${equipmentCount} (${totalImages} image${totalImages===1?'':'s'})</div>
+    <div>Days recorded: ${Object.keys(state.history.days||{}).length}</div>
+    <div id="cloudStatusUserCount">Registered users: -</div>
+  `;
+  if (cloudDb){
+    cloudDb.collection(USERS_COLLECTION).get().then(snap=>{
+      const line = document.getElementById('cloudStatusUserCount');
+      if (line) line.textContent = `Registered users: ${snap.size}`;
+    }).catch(()=>{});
+  }
+}
+function renderAdminPanel(){
+  if (!isAdminRole()) return;
+  renderUsersTable();
+  renderPermMatrix();
+  renderAuditLog();
+  renderCloudStatus();
 }
 
 let EMBEDDED_PASSWORD_HASH = '';
@@ -1511,6 +2120,7 @@ function findPotentialDuplicate(row, excludeId){
 }
 function addActivityRow(row){
   if (!row.id) row.id = genId();
+  if (row.version==null) row.version = 0;
   stampAuthor(row);
   const k = dateKey(row.reportDate);
   if (!state.history.days[k]) state.history.days[k] = [];
@@ -1519,6 +2129,7 @@ function addActivityRow(row){
   rebuildRowsFromHistory();
   syncActivityToExcel(row);
   saveActivityToCloud(row);
+  logAudit('Added Activity', 'Activity', row.id, null, { sapNumber: row.sapNumber, activity: row.activity, status: row.status });
 }
 function updateActivityRow(id, row){
   const loc = findActivityLocation(id);
@@ -1526,6 +2137,7 @@ function updateActivityRow(id, row){
   const original = reviveRow(state.history.days[loc.dayKey][loc.idx]);
   if (original.sheetRow!=null) row.sheetRow = original.sheetRow;
   if (original.createdBy) row.createdBy = original.createdBy;
+  row.version = (original.version||0) + 1;
   stampAuthor(row);
   state.history.days[loc.dayKey].splice(loc.idx,1);
   if (!state.history.days[loc.dayKey].length) delete state.history.days[loc.dayKey];
@@ -1537,16 +2149,25 @@ function updateActivityRow(id, row){
   rebuildRowsFromHistory();
   syncActivityToExcel(row);
   saveActivityToCloud(row);
+  const changedFields = {};
+  ['status','plannedHours','actualHours','remarks','balanceStatus','activity','location'].forEach(f=>{
+    const ov = original[f] instanceof Date ? original[f].toISOString() : original[f];
+    const nv = row[f] instanceof Date ? row[f].toISOString() : row[f];
+    if (String(ov==null?'':ov) !== String(nv==null?'':nv)) changedFields[f] = { from: ov, to: nv };
+  });
+  logAudit('Updated Activity', 'Activity', id, changedFields, null);
 }
 function deleteActivityById(id){
   const loc = findActivityLocation(id);
   if (!loc) return;
   if (!confirm('Delete this activity? This cannot be undone.')) return;
+  const deletedRow = reviveRow(state.history.days[loc.dayKey][loc.idx]);
   state.history.days[loc.dayKey].splice(loc.idx,1);
   if (!state.history.days[loc.dayKey].length) delete state.history.days[loc.dayKey];
   saveHistory(state.history);
   rebuildRowsFromHistory();
   deleteActivityFromCloud(id);
+  logAudit('Deleted Activity', 'Activity', id, { sapNumber: deletedRow.sapNumber, activity: deletedRow.activity, status: deletedRow.status }, null);
   if (state.rows.length){
     fillFilterOptions();
     renderHistoryPanel();
@@ -3060,6 +3681,8 @@ function renderActivityDetail(f, targetKey, targetDate){
   updateActivityTableSortArrows();
   if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">No activities match the selected filters.</td></tr>`; syncActivityTableStickyOffsets(); return; }
   const editableTable = !state.isSnapshot;
+  const canEditRow = editableTable && (!currentUserProfile || hasPermission('editActivity'));
+  const canDeleteRow = editableTable && (!currentUserProfile || hasPermission('deleteActivity'));
   tbody.innerHTML = rows.map((r,i)=>{
     const badgeClass = r.status==='Completed' ? 'badge-completed' : r.status==='In Progress' ? 'badge-progress' : r.status==='Rescheduled' ? 'badge-rescheduled' : 'badge-notstarted';
     const remarksText = r.remarks && r.remarks.trim() ? escapeHtml(r.remarks) : 'No remarks recorded for this activity.';
@@ -3071,8 +3694,8 @@ function renderActivityDetail(f, targetKey, targetDate){
     const workOrderCell = r.referenceNumber && r.referenceNumber.trim()
       ? `${escapeHtml(r.sapNumber)}<br><span style="color:var(--text2);font-size:11px;">Ref: ${escapeHtml(r.referenceNumber)}</span>`
       : escapeHtml(r.sapNumber);
-    const actionsCell = editableTable
-      ? `<td><button data-edit="${r.id}" style="padding:3px 8px;font-size:11px;">Edit</button> <button data-del="${r.id}" style="padding:3px 8px;font-size:11px;color:var(--red);">Delete</button></td>`
+    const actionsCell = (canEditRow || canDeleteRow)
+      ? `<td>${canEditRow?`<button data-edit="${r.id}" style="padding:3px 8px;font-size:11px;">Edit</button>`:''} ${canDeleteRow?`<button data-del="${r.id}" style="padding:3px 8px;font-size:11px;color:var(--red);">Delete</button>`:''}</td>`
       : `<td></td>`;
     const photos = getRowPhotos(r);
     const countBadge = photos.length > 1
@@ -3378,6 +4001,14 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
   const kpiSummary = parseKPISummary(wb.Sheets['KPIs Summary']);
   const fileMaxKey = Array.from(byDate.keys()).sort().pop();
 
+  // Import summary counters (item 19: Excel import protection). Since
+  // computeStableRowId() hashes sapNumber+date+activity+location, the same
+  // ID reappearing across an import means "this activity already existed
+  // here" (an update), a fresh ID means "new", and the same ID appearing
+  // twice WITHIN this one import (a literal duplicate row in the sheet)
+  // gets folded into a single record instead of being kept as two.
+  let importNewCount = 0, importUpdatedCount = 0, importDuplicatesPrevented = 0;
+
   byDate.forEach((groupRows, k)=>{
     // Photos are attached in the dashboard only (Excel has no photo column and
     // write-back doesn't include them), so re-parsing the sheet on every load/
@@ -3385,11 +4016,17 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
     // previous copy of the same activity (matched the same way duplicates are
     // detected) before replacing this day's rows with the freshly parsed ones.
     const previousRows = (state.history.days[k]||[]).map(reviveRow);
-    const mergedRows = groupRows.map(newRow=>{
+    const prevIds = new Set(previousRows.map(r=>r.id));
+    const seenThisImport = new Set();
+    const mergedRows = [];
+    groupRows.forEach(newRow=>{
       const match = previousRows.find(pr=>isSameActivity(pr, newRow));
       const photos = match ? getRowPhotos(match) : [];
       if (photos.length) newRow.photos = photos;
-      return newRow;
+      if (seenThisImport.has(newRow.id)){ importDuplicatesPrevented++; return; }
+      seenThisImport.add(newRow.id);
+      if (prevIds.has(newRow.id)) importUpdatedCount++; else importNewCount++;
+      mergedRows.push(newRow);
     });
     state.history.days[k] = mergedRows.map(serializeRow);
     if (k === fileMaxKey) {
@@ -3419,6 +4056,11 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
   populateDatalists();
   renderHistoryPanel();
   render();
+  if (!opts.silent){
+    const totalRows = datedRows.length;
+    const errors = parsed.rows.length - datedRows.length;
+    alert(`Import summary\n\nTotal Excel rows read: ${totalRows}\nNew activities: ${importNewCount}\nUpdated activities: ${importUpdatedCount}\nDuplicates prevented: ${importDuplicatesPrevented}\nRows skipped (no date): ${errors}`);
+  }
 }
 
 async function readFileAsWorkbook(file){
@@ -3844,6 +4486,7 @@ function startEditActivity(id){
   const row = getActivityById(id);
   if (!row) return;
   state.editingActivityId = id;
+  state.editingBaseVersion = row.version || 0;
   writeActivityForm(row);
   document.getElementById('activityFormTitle').textContent = 'Edit activity';
   document.getElementById('btnAddActivity').textContent = 'Save changes';
@@ -3854,6 +4497,7 @@ function startEditActivity(id){
 }
 function cancelEditActivity(){
   state.editingActivityId = null;
+  state.editingBaseVersion = 0;
   clearActivityFormForNext();
   setActivityFormDefaultDate();
   document.getElementById('activityFormTitle').textContent = 'Add an activity';
@@ -3871,11 +4515,26 @@ function populateDatalists(){
   fill('dlSortField', state.rows.map(r=>r.sortField));
 }
 
-on('btnAddActivity', 'click', ()=>{
+on('btnAddActivity', 'click', async ()=>{
   const row = readActivityForm();
   if (!row.reportDate){ alert('Pick a Report date first.'); return; }
   if (!row.activity){ alert('Type an activity description first.'); return; }
   if (state.editingActivityId){
+    // Best-effort conflict check: since activities live in this browser's
+    // local storage first and Firestore is an async mirror, this can't be a
+    // true atomic transaction across every device - but checking the
+    // cloud's current version right before saving catches the common case
+    // of someone else already having saved a newer edit to this same
+    // activity since this browser last loaded it.
+    if (cloudReady && cloudDb){
+      try{
+        const snap = await cloudDb.collection(CLOUD_COLLECTION).doc(state.editingActivityId).get();
+        if (snap.exists && (snap.data().version||0) > (state.editingBaseVersion||0)){
+          alert('This activity was modified by another user. Please refresh the record before saving your changes.');
+          return;
+        }
+      }catch(e){ console.warn('Conflict check failed, saving optimistically:', e.message); }
+    }
     updateActivityRow(state.editingActivityId, row);
     cancelEditActivity();
   } else {
@@ -4237,8 +4896,17 @@ function openAllEntrySections(){
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      document.body.classList.remove('tab-progress','tab-kpi');
+      document.body.classList.remove('tab-progress','tab-kpi','tab-admin');
       document.body.classList.add('tab-'+btn.getAttribute('data-tab'));
+      if (btn.getAttribute('data-tab')==='admin') renderAdminPanel();
+    });
+  });
+  document.querySelectorAll('.admin-subtab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.admin-subtab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.admin-subtab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('adminTab'+btn.getAttribute('data-admin-tab').charAt(0).toUpperCase()+btn.getAttribute('data-admin-tab').slice(1)).classList.add('active');
     });
   });
 })();

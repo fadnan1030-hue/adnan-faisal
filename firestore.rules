@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function myEmail() { return request.auth.token.email.lower(); }
+    function myProfileExists() {
+      return exists(/databases/$(database)/documents/users/$(myEmail()));
+    }
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(myEmail())).data;
+    }
+    function isActiveUser() {
+      return signedIn() && myProfileExists() && myProfile().status == 'active';
+    }
+    function isSuperAdmin() {
+      return isActiveUser() && myProfile().role == 'SuperAdmin';
+    }
+    function myPerm(key) {
+      return isSuperAdmin() || (
+        isActiveUser() &&
+        get(/databases/$(database)/documents/rolePermissions/$(myProfile().role)).data.get(key, false) == true
+      );
+    }
+    function canManageUsers() { return myPerm('manageUsers'); }
+
+    // --- Users: identities, roles, status ---------------------------------
+    // Anyone signed in can read (needed for role lookups + the Admin Panel +
+    // the self-registration allow-list check). A brand-new account may only
+    // ever create ITS OWN profile, and only as a safe "Viewer" - nobody can
+    // self-grant a higher role. Admins/Super Admin can create or edit any
+    // profile (adding users, changing roles, disabling/enabling). A signed-in
+    // user may also flip their OWN "invited" profile to "active" on their
+    // first login (self-activation after an admin added their email), or
+    // silently stamp their own lastLoginAt.
+    match /users/{email} {
+      allow read: if signedIn();
+      allow create: if signedIn() && email == myEmail() &&
+        request.resource.data.role == 'Viewer' &&
+        request.resource.data.status == 'active';
+      allow create: if canManageUsers();
+      allow update: if canManageUsers()
+        || (signedIn() && email == myEmail() && resource.data.status == 'invited'
+            && request.resource.data.status == 'active'
+            && request.resource.data.uid == request.auth.uid)
+        || (signedIn() && email == myEmail()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt']));
+      allow delete: if canManageUsers();
+    }
+
+    // --- Role -> permission matrix, edited from Admin Panel ---------------
+    match /rolePermissions/{role} {
+      allow read: if isActiveUser();
+      allow write: if canManageUsers();
+    }
+
+    // --- Append-only audit trail --------------------------------------------
+    match /auditLog/{entryId} {
+      allow read: if canManageUsers();
+      allow create: if isActiveUser();
+      allow update, delete: if false;
+    }
+
+    // --- Activities (the core dataset) --------------------------------------
+    match /activities/{id} {
+      allow read: if isActiveUser();
+      allow create: if myPerm('addActivity');
+      allow update: if myPerm('editActivity') || myPerm('changeStatus') || myPerm('rescheduleActivity');
+      allow delete: if myPerm('deleteActivity');
+    }
+
+    // --- Equipment images ----------------------------------------------------
+    match /equipmentImages/{id} {
+      allow read: if isActiveUser();
+      allow create, update: if myPerm('uploadImages');
+      allow delete: if myPerm('deleteImages');
+    }
+
+    // --- Lightweight connectivity probe (read-only, no real data) ---------
+    match /_connectivity/{doc} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+  }
+}
