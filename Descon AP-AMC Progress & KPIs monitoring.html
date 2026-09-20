@@ -249,6 +249,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   #planTable tbody tr[data-clickable]{cursor:pointer;}
   #planTable tbody tr[data-clickable]:hover{background:var(--bg);}
   .header-logo{height:44px;width:auto;object-fit:contain;background:#fff;border-radius:6px;padding:4px 8px;}
+  .print-only{display:none;}
+  .er-image-card.er-excluded{opacity:.45;}
   @media print{
     @page{ margin: 20px 22px; }
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff;}
@@ -262,6 +264,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     .theme-btn-wrap{display:none !important;}
     .hero-banner{display:none !important;}
     .chart-box{height:220px !important;}
+    body.report-open .topbar, body.report-open .wrap{display:none !important;}
+    body.report-open #equipmentReportOverlay{position:static !important;overflow:visible !important;display:block !important;}
+    .print-only{display:block !important;}
+    .er-image-card.er-excluded{display:none !important;}
+    #equipmentReportContent .card{break-inside:avoid;page-break-inside:avoid;}
   }
 </style>
 </head>
@@ -333,6 +340,109 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   </div>
   <div class="lock-modal-error" id="cloudLoginError"></div>
   <button class="primary" id="btnCloudLogin">Sign in</button>
+</div>
+
+<div id="equipmentReportOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1500;overflow-y:auto;">
+  <div class="no-print" style="position:sticky;top:0;background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;z-index:10;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <button class="subtle" id="btnCloseEquipmentReport" style="border:1px solid rgba(255,255,255,.3);color:#fff;">&larr; Back to Dashboard</button>
+      <b>Equipment Report Builder</b>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <select id="erPeriod" style="padding:7px 10px;">
+        <option value="all">All History</option>
+        <option value="thisMonth">This Month</option>
+        <option value="prevMonth">Previous Month</option>
+        <option value="thisYear">Current Year</option>
+        <option value="prevYear">Previous Year</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      <input type="date" id="erCustomFrom" style="display:none;">
+      <input type="date" id="erCustomTo" style="display:none;">
+      <button class="subtle" id="btnPrintEquipmentReport" style="border:1px solid rgba(255,255,255,.3);color:#fff;">&#128424; Print / Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="no-print" style="max-width:960px;margin:16px auto 0;padding:0 20px;">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Report sections</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px;">
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecInfo" checked> Equipment Information</label>
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecKpi" checked> KPI Summary</label>
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecHistory" checked> Activity History</label>
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecImages" checked> Equipment Images</label>
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecObservations" checked> Observations</label>
+        <label><input type="checkbox" class="er-section-toggle" data-section="erSecRecommendations" checked> Recommendations</label>
+      </div>
+    </div>
+  </div>
+
+  <div id="equipmentReportContent" style="max-width:960px;margin:0 auto 40px;padding:0 20px;">
+    <div style="text-align:center;padding:30px 0 10px;border-bottom:3px solid var(--navy);margin-bottom:20px;">
+      <div style="font-size:22px;font-weight:800;letter-spacing:.03em;">EQUIPMENT MAINTENANCE REPORT</div>
+      <div style="font-size:26px;font-weight:800;color:var(--blue);margin-top:8px;" id="erEquipmentTitle">-</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:10px;" id="erPeriodLabel">-</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:14px;" id="erPreparedBy">-</div>
+    </div>
+
+    <div id="erSecInfo" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Equipment Information</div>
+      <div id="erInfoBody" style="font-size:13px;line-height:1.9;margin-top:8px;"></div>
+    </div>
+
+    <div id="erSecKpi" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Maintenance KPI Summary</div>
+      <div id="erKpiBody" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="erSecHistory" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Activity History</div>
+      <div class="plan-table-wrap" style="margin-top:10px;">
+        <table class="data-table" id="erHistoryTable">
+          <thead><tr><th>Work order</th><th>Date</th><th>Type</th><th>Activity</th><th>Location</th><th>Planned hrs</th><th>Actual hrs</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="erSecImages" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Equipment Images</div>
+      <div class="no-print" style="margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="file" id="erImageUpload" accept="image/*" multiple>
+        <select id="erImageCategory">
+          <option>Equipment Overview</option>
+          <option>Nameplate</option>
+          <option>Condition</option>
+          <option>Inspection</option>
+          <option>Preventive Maintenance</option>
+          <option>Corrective Maintenance</option>
+          <option>Defect</option>
+          <option>Before Maintenance</option>
+          <option>During Maintenance</option>
+          <option>After Maintenance</option>
+          <option value="__custom__">Custom...</option>
+        </select>
+        <input type="text" id="erImageCategoryCustom" placeholder="Custom category" style="display:none;width:140px;">
+        <button class="subtle" id="btnErSelectAllImages" style="border:1px solid var(--border);">Select all</button>
+        <button class="subtle" id="btnErClearImageSelection" style="border:1px solid var(--border);">Clear selection</button>
+      </div>
+      <div id="erImageGallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;"></div>
+    </div>
+
+    <div id="erSecObservations" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Equipment Observations</div>
+      <textarea id="erObservations" rows="4" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;margin-top:8px;" placeholder="Equipment inspected during the reporting period. Maintenance activities were reviewed and outstanding items are listed in the activity history."></textarea>
+    </div>
+
+    <div id="erSecRecommendations" class="card" style="margin-bottom:16px;">
+      <div class="chart-title">Recommendations / Follow-up Actions</div>
+      <textarea id="erRecommendations" rows="4" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;margin-top:8px;" placeholder="Required corrective actions, recommended inspections, spare requirements, follow-up activities..."></textarea>
+    </div>
+
+    <div style="font-size:11px;color:var(--text2);text-align:right;margin-top:20px;border-top:1px solid var(--border);padding-top:10px;">
+      Generated by Descon AP-AMC Progress &amp; KPIs Monitoring Dashboard
+    </div>
+  </div>
 </div>
 
 <div class="wrap">
@@ -724,7 +834,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <div class="section-title">Activity detail</div>
     <div class="card" style="margin-bottom:16px;">
-      <div class="chart-title">All matching activities</div>
+      <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span>All matching activities</span>
+        <button class="primary no-print" id="btnBuildEquipmentReport" style="display:none;font-size:12.5px;padding:7px 12px;">&#128203; Build Equipment Report</button>
+      </div>
       <div class="chart-desc" id="planForTodayDesc">Activities for the latest report date. Click a row to see its remarks.</div>
       <div class="plan-table-wrap" style="margin-top:10px;">
         <table class="data-table" id="planTable">
@@ -1033,6 +1146,7 @@ function initCloudSync(){
         updateSignedInIndicator(user);
         updateCloudStatus('Connecting to cloud backup...');
         pullCloudActivities();
+        pullEquipmentImages();
       } else {
         currentCloudUser = null;
         cloudReady = false;
@@ -1136,6 +1250,74 @@ function pushAllLocalActivitiesToCloud(){
   updateCloudStatus(`Cloud backup: syncing ${allRows.length} activit${allRows.length===1?'y':'ies'}...`);
   nextChunk();
 }
+
+// --- Equipment images (for Equipment Reports) ---------------------------
+// Images are keyed by Equipment ID (sort field), independent of any single
+// activity or generated report, so they persist across sessions and across
+// however many reports get built for that equipment. Same upsert-by-id
+// cloud pattern as activities: set(doc(imageId)) never creates a duplicate.
+const EQUIPMENT_IMAGES_COLLECTION = 'equipmentImages';
+function equipmentImagesFor(equipmentId){
+  return (state.history.equipmentImages && state.history.equipmentImages[equipmentId]) || [];
+}
+function addEquipmentImage(equipmentId, image){
+  if (!state.history.equipmentImages) state.history.equipmentImages = {};
+  if (!state.history.equipmentImages[equipmentId]) state.history.equipmentImages[equipmentId] = [];
+  state.history.equipmentImages[equipmentId].push(image);
+  saveHistory(state.history);
+  saveEquipmentImageToCloud(equipmentId, image);
+}
+function updateEquipmentImage(equipmentId, imageId, patch){
+  const arr = equipmentImagesFor(equipmentId);
+  const img = arr.find(im=>im.id===imageId);
+  if (!img) return;
+  Object.assign(img, patch);
+  saveHistory(state.history);
+  saveEquipmentImageToCloud(equipmentId, img);
+}
+function deleteEquipmentImage(equipmentId, imageId){
+  const arr = equipmentImagesFor(equipmentId);
+  const idx = arr.findIndex(im=>im.id===imageId);
+  if (idx>=0) arr.splice(idx,1);
+  saveHistory(state.history);
+  deleteEquipmentImageFromCloud(imageId);
+}
+function saveEquipmentImageToCloud(equipmentId, image){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(EQUIPMENT_IMAGES_COLLECTION).doc(image.id).set({
+    equipmentId,
+    dataUrl: image.dataUrl,
+    title: image.title || '',
+    remarks: image.remarks || '',
+    category: image.category || '',
+    date: image.date || null,
+    included: image.included !== false,
+    createdBy: image.createdBy || null,
+    createdAt: image.createdAt || null
+  }).catch(e=> console.warn('Cloud image save failed:', e.message));
+}
+function deleteEquipmentImageFromCloud(imageId){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(EQUIPMENT_IMAGES_COLLECTION).doc(imageId).delete().catch(e=> console.warn('Cloud image delete failed:', e.message));
+}
+function pullEquipmentImages(){
+  if (!cloudDb) return;
+  cloudDb.collection(EQUIPMENT_IMAGES_COLLECTION).get().then(snapshot=>{
+    if (!state.history.equipmentImages) state.history.equipmentImages = {};
+    let added = 0;
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      if (!d || !d.equipmentId) return;
+      if (!state.history.equipmentImages[d.equipmentId]) state.history.equipmentImages[d.equipmentId] = [];
+      const arr = state.history.equipmentImages[d.equipmentId];
+      if (arr.some(im=>im.id===doc.id)) return;
+      arr.push({ id: doc.id, dataUrl: d.dataUrl, title: d.title, remarks: d.remarks, category: d.category, date: d.date, included: d.included!==false, createdBy: d.createdBy, createdAt: d.createdAt });
+      added++;
+    });
+    if (added) saveHistory(state.history);
+  }).catch(e=> console.warn('Equipment image pull failed:', e.message));
+}
+
 let EMBEDDED_PASSWORD_HASH = '';
 const PASSWORD_HASH_KEY = 'apstt1_password_hash';
 const UNLOCK_TOKEN_KEY = 'apstt1_unlock_token';
@@ -1692,6 +1874,7 @@ function loadHistory(){
   try{ const raw = localStorage.getItem(HIST_KEY); h = raw? JSON.parse(raw) : null; }catch(e){ h = null; }
   h = h || { days:{}, lti:{}, barChart:{}, kpi:{} };
   if (!h.emergencyMH) h.emergencyMH = {};
+  if (!h.equipmentImages) h.equipmentImages = {};
   return h;
 }
 function saveHistory(h){
@@ -1906,6 +2089,78 @@ function initFilterCombos(){
 }
 on('btnResetFilters', 'click', ()=>{
   FILTER_COMBO_IDS.forEach(id=> applyComboValue(id, 'All'));
+});
+
+on('btnBuildEquipmentReport', 'click', openEquipmentReport);
+on('btnCloseEquipmentReport', 'click', closeEquipmentReport);
+on('erPeriod', 'change', ()=>{
+  const isCustom = document.getElementById('erPeriod').value === 'custom';
+  document.getElementById('erCustomFrom').style.display = isCustom ? 'inline-block' : 'none';
+  document.getElementById('erCustomTo').style.display = isCustom ? 'inline-block' : 'none';
+  renderEquipmentReport();
+});
+on('erCustomFrom', 'change', renderEquipmentReport);
+on('erCustomTo', 'change', renderEquipmentReport);
+document.querySelectorAll('.er-section-toggle').forEach(cb=>{
+  cb.addEventListener('change', ()=>{
+    const section = document.getElementById(cb.getAttribute('data-section'));
+    if (section) section.style.display = cb.checked ? '' : 'none';
+  });
+});
+on('erImageCategory', 'change', ()=>{
+  const custom = document.getElementById('erImageCategory').value === '__custom__';
+  document.getElementById('erImageCategoryCustom').style.display = custom ? 'inline-block' : 'none';
+});
+on('erImageUpload', 'change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const equipmentId = state.currentReportEquipment;
+  const catSelect = document.getElementById('erImageCategory');
+  const category = catSelect.value === '__custom__'
+    ? (document.getElementById('erImageCategoryCustom').value.trim() || 'Other')
+    : catSelect.value;
+  for (const file of files){
+    try{
+      const dataUrl = await readAndCompressImage(file, 1000, 0.72);
+      addEquipmentImage(equipmentId, {
+        id: genId(),
+        dataUrl,
+        title: '',
+        remarks: '',
+        category,
+        date: dateKey(new Date()),
+        included: true,
+        createdBy: (currentCloudUser && currentCloudUser.email) || null,
+        createdAt: new Date().toISOString()
+      });
+    }catch(err){
+      alert('Could not read one of those images: ' + err.message);
+    }
+  }
+  renderEquipmentImageGallery(equipmentId);
+  e.target.value = '';
+});
+on('btnErSelectAllImages', 'click', ()=>{
+  const equipmentId = state.currentReportEquipment;
+  equipmentImagesFor(equipmentId).forEach(img=> updateEquipmentImage(equipmentId, img.id, { included: true }));
+  renderEquipmentImageGallery(equipmentId);
+});
+on('btnErClearImageSelection', 'click', ()=>{
+  const equipmentId = state.currentReportEquipment;
+  equipmentImagesFor(equipmentId).forEach(img=> updateEquipmentImage(equipmentId, img.id, { included: false }));
+  renderEquipmentImageGallery(equipmentId);
+});
+on('btnPrintEquipmentReport', 'click', ()=>{
+  const equipmentId = state.currentReportEquipment || 'Equipment';
+  const period = document.getElementById('erPeriod').value;
+  const periodTag = period==='custom'
+    ? `${sanitizeForFilename(document.getElementById('erCustomFrom').value)}_to_${sanitizeForFilename(document.getElementById('erCustomTo').value)}`
+    : (period==='all' ? `AllHistory_${new Date().getFullYear()}` : `${period}_${new Date().getFullYear()}`);
+  const originalTitle = document.title;
+  document.title = `${sanitizeForFilename(equipmentId)}_Equipment_Maintenance_Report_${periodTag}`;
+  const restore = ()=>{ document.title = originalTitle; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  window.print();
 });
 
 function fillFilterOptions(){
@@ -2694,6 +2949,198 @@ function render(){
   const maxDateStr = k.maxDate ? k.maxDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : 'n/a';
   const dayCount = Object.keys(state.history.days).length;
   document.getElementById('subtitleLine').textContent = `Daily Progress Report . ${dayCount} day(s) recorded . Latest report date ${maxDateStr}`;
+  const reportBtn = document.getElementById('btnBuildEquipmentReport');
+  if (reportBtn) reportBtn.style.display = (f.sortField && f.sortField!=='All') ? 'inline-block' : 'none';
+}
+
+// --- Equipment Report Builder --------------------------------------------
+function kpiTile(label, value){
+  return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;"><div style="font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700;">${escapeHtml(label)}</div><div style="font-size:20px;font-weight:800;margin-top:4px;">${escapeHtml(String(value))}</div></div>`;
+}
+function computeEquipmentReportData(equipmentId, period, customFrom, customTo){
+  const allRows = state.rows.filter(r => (r.sortField||'') === equipmentId);
+  let rows = allRows;
+  const now = new Date();
+  if (period==='thisMonth'){
+    const ms = new Date(now.getFullYear(), now.getMonth(), 1);
+    rows = allRows.filter(r=> r.reportDate && r.reportDate>=ms);
+  } else if (period==='prevMonth'){
+    const ms = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const me = new Date(now.getFullYear(), now.getMonth(), 1);
+    rows = allRows.filter(r=> r.reportDate && r.reportDate>=ms && r.reportDate<me);
+  } else if (period==='thisYear'){
+    const ys = new Date(now.getFullYear(),0,1);
+    rows = allRows.filter(r=> r.reportDate && r.reportDate>=ys);
+  } else if (period==='prevYear'){
+    const ys = new Date(now.getFullYear()-1,0,1);
+    const ye = new Date(now.getFullYear(),0,1);
+    rows = allRows.filter(r=> r.reportDate && r.reportDate>=ys && r.reportDate<ye);
+  } else if (period==='custom' && customFrom && customTo){
+    rows = allRows.filter(r=> r.reportDate && r.reportDate>=customFrom && r.reportDate<=customTo);
+  }
+  rows = rows.slice().sort((a,b)=> (a.reportDate&&b.reportDate) ? a.reportDate-b.reportDate : 0);
+
+  const pmRows = rows.filter(r=>r.discipline==='PM');
+  const cmRows = rows.filter(r=>r.discipline==='CM');
+  const pmDone = pmRows.filter(r=>r.status==='Completed').length;
+  const cmDone = cmRows.filter(r=>r.status==='Completed').length;
+
+  return {
+    rows,
+    total: rows.length,
+    pm: pmRows.length,
+    cm: cmRows.length,
+    gen: rows.filter(r=>r.discipline==='General').length,
+    ec: rows.filter(r=>r.discipline==='EmergencyCallout').length,
+    notStarted: rows.filter(r=>r.status==='Not Started').length,
+    inProgress: rows.filter(r=>r.status==='In Progress').length,
+    rescheduled: rows.filter(r=>r.status==='Rescheduled').length,
+    completed: rows.filter(r=>r.status==='Completed').length,
+    plannedHrs: rows.reduce((s,r)=>s+(r.plannedHours||0),0),
+    actualHrs: rows.reduce((s,r)=>s+(r.actualHours||0),0),
+    pmPct: pmRows.length ? pmDone/pmRows.length : null,
+    cmPct: cmRows.length ? cmDone/cmRows.length : null,
+    locations: Array.from(new Set(rows.map(r=>r.location).filter(Boolean))),
+    scopes: Array.from(new Set(rows.map(r=>r.scope).filter(Boolean))),
+    disciplines: Array.from(new Set(rows.map(r=>displayDiscipline(r.discipline)).filter(Boolean))),
+    abcSet: Array.from(new Set(rows.map(r=>r.abcIndicator).filter(Boolean)))
+  };
+}
+function sanitizeForFilename(s){
+  return String(s||'').replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'');
+}
+function openEquipmentReport(){
+  const equipmentId = document.getElementById('fSortField').value;
+  if (!equipmentId || equipmentId==='All') return;
+  state.currentReportEquipment = equipmentId;
+  document.getElementById('equipmentReportOverlay').style.display = 'block';
+  document.body.classList.add('report-open');
+  document.getElementById('erPeriod').value = 'all';
+  document.getElementById('erCustomFrom').style.display = 'none';
+  document.getElementById('erCustomTo').style.display = 'none';
+  document.getElementById('erObservations').value = '';
+  document.getElementById('erRecommendations').value = '';
+  renderEquipmentReport();
+}
+function closeEquipmentReport(){
+  document.getElementById('equipmentReportOverlay').style.display = 'none';
+  document.body.classList.remove('report-open');
+}
+function renderEquipmentReport(){
+  const equipmentId = state.currentReportEquipment;
+  if (!equipmentId) return;
+  const period = document.getElementById('erPeriod').value;
+  const customFromVal = document.getElementById('erCustomFrom').value;
+  const customToVal = document.getElementById('erCustomTo').value;
+  const customFrom = customFromVal ? inputValueToDate(customFromVal) : null;
+  const customTo = customToVal ? inputValueToDate(customToVal) : null;
+  const data = computeEquipmentReportData(equipmentId, period, customFrom, customTo);
+
+  document.getElementById('erEquipmentTitle').textContent = equipmentId;
+  const periodLabels = {
+    all: 'All History', thisMonth: 'This Month', prevMonth: 'Previous Month',
+    thisYear: 'Current Year', prevYear: 'Previous Year',
+    custom: (customFrom && customTo) ? `${dateToInputValue(customFrom)} to ${dateToInputValue(customTo)}` : 'Custom Range'
+  };
+  document.getElementById('erPeriodLabel').textContent = `Reporting Period: ${periodLabels[period] || 'All History'}`;
+  const preparedBy = (currentCloudUser && currentCloudUser.email) || 'Unknown user';
+  document.getElementById('erPreparedBy').textContent = `Prepared by: ${preparedBy} | Report date: ${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
+
+  document.getElementById('erInfoBody').innerHTML = [
+    `<b>Equipment ID:</b> ${escapeHtml(equipmentId)}`,
+    data.locations.length ? `<b>Location(s):</b> ${escapeHtml(data.locations.join(', '))}` : '',
+    data.scopes.length ? `<b>Scope:</b> ${escapeHtml(data.scopes.join(', '))}` : '',
+    data.disciplines.length ? `<b>Discipline(s) involved:</b> ${escapeHtml(data.disciplines.join(', '))}` : '',
+    data.abcSet.length ? `<b>ABC / Criticality:</b> ${escapeHtml(data.abcSet.join(', '))}` : ''
+  ].filter(Boolean).join('<br>') || '<span style="color:var(--text2)">No information available.</span>';
+
+  document.getElementById('erKpiBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+      ${kpiTile('Total activities', data.total)}
+      ${kpiTile('PM activities', data.pm)}
+      ${kpiTile('CM activities', data.cm)}
+      ${kpiTile('Other', data.gen)}
+      ${kpiTile('Emergency callout', data.ec)}
+      ${kpiTile('Not started', data.notStarted)}
+      ${kpiTile('In progress', data.inProgress)}
+      ${kpiTile('Rescheduled', data.rescheduled)}
+      ${kpiTile('Completed', data.completed)}
+      ${kpiTile('Planned man-hours', data.plannedHrs)}
+      ${kpiTile('Actual man-hours', data.actualHrs)}
+      ${kpiTile('PM compliance', data.pmPct!=null ? fmtPct(data.pmPct) : 'N/A')}
+      ${kpiTile('CM compliance', data.cmPct!=null ? fmtPct(data.cmPct) : 'N/A')}
+    </div>`;
+
+  const tbody = document.querySelector('#erHistoryTable tbody');
+  tbody.innerHTML = data.rows.length ? data.rows.map(r=>`
+    <tr>
+      <td>${escapeHtml(r.sapNumber)}</td>
+      <td>${r.reportDate ? r.reportDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-'}</td>
+      <td>${escapeHtml(displayDiscipline(r.discipline))}</td>
+      <td>${escapeHtml(r.activity)}</td>
+      <td>${escapeHtml(r.location)}</td>
+      <td>${r.plannedHours||0}</td>
+      <td>${r.actualHours||0}</td>
+      <td>${escapeHtml(r.status)}</td>
+    </tr>`).join('') : `<tr><td colspan="8" style="color:var(--text2)">No activities found for this equipment and period.</td></tr>`;
+
+  renderEquipmentImageGallery(equipmentId);
+}
+function renderEquipmentImageGallery(equipmentId){
+  const gallery = document.getElementById('erImageGallery');
+  const images = equipmentImagesFor(equipmentId);
+  if (!images.length){
+    gallery.innerHTML = '<div style="color:var(--text2);font-size:13px;grid-column:1/-1;">No images uploaded yet for this equipment.</div>';
+    return;
+  }
+  gallery.innerHTML = images.map(img=>`
+    <div class="er-image-card${img.included===false ? ' er-excluded' : ''}" data-img-id="${img.id}" style="border:1px solid var(--border);border-radius:8px;padding:8px;">
+      <img src="${img.dataUrl}" style="width:100%;height:110px;object-fit:cover;border-radius:6px;cursor:zoom-in;" data-photo-view>
+      <label class="no-print" style="display:flex;align-items:center;gap:6px;font-size:11px;margin-top:6px;">
+        <input type="checkbox" class="er-image-include" data-img-id="${img.id}" ${img.included!==false ? 'checked' : ''}> Include in report
+      </label>
+      <input type="text" class="er-image-title no-print" data-img-id="${img.id}" value="${escapeHtml(img.title||'')}" placeholder="Image title" style="width:100%;font-size:11px;padding:4px 6px;margin-top:4px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;">
+      <textarea class="er-image-remarks no-print" data-img-id="${img.id}" rows="2" placeholder="Remarks" style="width:100%;font-size:11px;padding:4px 6px;margin-top:4px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;">${escapeHtml(img.remarks||'')}</textarea>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px;">${escapeHtml(img.category||'')}${img.date ? ' | '+escapeHtml(img.date) : ''}</div>
+      <div class="print-only" style="font-size:11px;font-weight:700;margin-top:4px;">${escapeHtml(img.title||'')}</div>
+      <div class="print-only" style="font-size:10.5px;color:#444;">${escapeHtml(img.remarks||'')}</div>
+      <button type="button" class="subtle no-print er-image-delete" data-img-id="${img.id}" style="margin-top:4px;font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>
+    </div>`).join('');
+
+  gallery.querySelectorAll('img[data-photo-view]').forEach(imgEl=>{
+    imgEl.addEventListener('click', ()=> showPhotoLightbox([imgEl.src], 0));
+  });
+  gallery.querySelectorAll('.er-image-include').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const id = cb.getAttribute('data-img-id');
+      updateEquipmentImage(equipmentId, id, { included: cb.checked });
+      const card = gallery.querySelector(`.er-image-card[data-img-id="${id}"]`);
+      if (card) card.classList.toggle('er-excluded', !cb.checked);
+    });
+  });
+  gallery.querySelectorAll('.er-image-title').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      updateEquipmentImage(equipmentId, inp.getAttribute('data-img-id'), { title: inp.value.trim() });
+      const card = gallery.querySelector(`.er-image-card[data-img-id="${inp.getAttribute('data-img-id')}"]`);
+      const printTitle = card && card.querySelector('.print-only');
+      if (printTitle) printTitle.textContent = inp.value.trim();
+    });
+  });
+  gallery.querySelectorAll('.er-image-remarks').forEach(ta=>{
+    ta.addEventListener('change', ()=>{
+      updateEquipmentImage(equipmentId, ta.getAttribute('data-img-id'), { remarks: ta.value.trim() });
+      const card = gallery.querySelector(`.er-image-card[data-img-id="${ta.getAttribute('data-img-id')}"]`);
+      const printRemarks = card && card.querySelectorAll('.print-only')[1];
+      if (printRemarks) printRemarks.textContent = ta.value.trim();
+    });
+  });
+  gallery.querySelectorAll('.er-image-delete').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if (!confirm('Delete this image? This cannot be undone.')) return;
+      deleteEquipmentImage(equipmentId, btn.getAttribute('data-img-id'));
+      renderEquipmentImageGallery(equipmentId);
+    });
+  });
 }
 
 function onWorkbookLoaded(wb, fileName, opts, rawBuf){
@@ -3767,6 +4214,7 @@ state.isSnapshot = !!window.__EMBEDDED_HISTORY__;
     state.history = window.__EMBEDDED_HISTORY__;
     if (!state.history.barChart) state.history.barChart = {};
     if (!state.history.kpi) state.history.kpi = {};
+    if (!state.history.equipmentImages) state.history.equipmentImages = {};
     rebuildRowsFromHistory();
     document.getElementById('emptyState').style.display='none';
     document.getElementById('dashboardBody').style.display='block';
