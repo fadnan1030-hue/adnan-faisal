@@ -6,3 +6,6 @@ Backups/
 
 # Screen recordings (large, not part of the deliverable)
 *.mp4
+
+# Firebase CLI local cache (deploy metadata, not source)
+.firebase/
