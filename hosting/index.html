@@ -906,6 +906,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <table class="data-table" id="planTable">
           <thead>
             <tr>
+              <th data-sort="reportDate">Date<span class="sort-arrow"></span></th>
               <th data-sort="sapNumber">Work order<span class="sort-arrow"></span></th>
               <th data-sort="sortField">Sort field<span class="sort-arrow"></span></th>
               <th data-sort="discipline">Discipline<span class="sort-arrow"></span></th>
@@ -918,6 +919,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
               <th></th>
             </tr>
             <tr class="table-filter-row">
+              <th><input type="text" id="tfDate" class="table-filter-input" placeholder="e.g. 15 Sep, 2026-09-15, 5-20 Sep"></th>
               <th><input type="text" id="tfWorkOrder" class="table-filter-input" placeholder="Search"></th>
               <th><input type="text" id="tfSortField" class="table-filter-input" placeholder="Search"></th>
               <th><select id="tfDiscipline" class="table-filter-input"><option value="">All</option></select></th>
@@ -957,6 +959,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="admin-subtab-btn" data-admin-tab="roles">Roles &amp; Permissions</button>
       <button class="admin-subtab-btn" data-admin-tab="audit">Audit Log</button>
       <button class="admin-subtab-btn" data-admin-tab="status">Cloud Status</button>
+      <button class="admin-subtab-btn" data-admin-tab="cleanup" id="adminSubtabCleanup" style="display:none;">Data Cleanup</button>
     </div>
 
     <div class="admin-subtab-panel active" id="adminTabUsers">
@@ -1011,6 +1014,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
     <div class="admin-subtab-panel" id="adminTabStatus">
       <div id="cloudStatusBody" style="font-size:13px;line-height:2;"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="adminTabCleanup">
+      <div class="chart-desc" style="margin-bottom:10px;max-width:640px;">Finds activities that exist more than once in the cloud database (same work order, date, activity and location) and keeps exactly one copy of each. This only removes duplicate copies - it never touches a genuinely unique activity. Super Admin only. Run "Scan" first - nothing is deleted until you review the results and click "Remove duplicates permanently".</div>
+      <button id="btnScanDuplicates" style="border:1px solid var(--border);">Scan for duplicates</button>
+      <button class="primary" id="btnRemoveDuplicates" style="display:none;margin-left:8px;background:var(--red);border-color:var(--red);">Remove duplicates permanently</button>
+      <div class="lock-modal-status" id="dedupStatus" style="margin-top:8px;"></div>
+      <div id="dedupResult" style="margin-top:12px;"></div>
     </div>
   </div>
 </div>
@@ -1946,6 +1957,7 @@ function renderCloudStatus(){
     <div>Cloud connection: ${isOnlineNow ? '<b style="color:#2fbf6e;">Connected</b>' : '<b style="color:#e5484d;">Offline</b>'}</div>
     <div>Last synced: ${lastSyncedAt ? lastSyncedAt.toLocaleString() : 'Not yet this session'}</div>
     <div>Activities loaded in this browser: ${state.rows.length}</div>
+    <div id="cloudStatusActivityCount">Activities in cloud database: -</div>
     <div>Equipment with images: ${equipmentCount} (${totalImages} image${totalImages===1?'':'s'})</div>
     <div>Days recorded: ${Object.keys(state.history.days||{}).length}</div>
     <div id="cloudStatusUserCount">Registered users: -</div>
@@ -1955,14 +1967,132 @@ function renderCloudStatus(){
       const line = document.getElementById('cloudStatusUserCount');
       if (line) line.textContent = `Registered users: ${snap.size}`;
     }).catch(()=>{});
+    cloudDb.collection(CLOUD_COLLECTION).get().then(snap=>{
+      const line = document.getElementById('cloudStatusActivityCount');
+      if (line) line.textContent = `Activities in cloud database: ${snap.size}`;
+    }).catch(()=>{});
   }
 }
+
+// --- Cloud duplicate-activity cleanup (Super Admin only) -----------------
+// Old activities created before computeStableRowId() existed got a random
+// genId() as their document ID, so the same real-world activity can end up
+// stored under more than one document. Recomputing the stable content-hash
+// from each doc's own fields and grouping by it finds those duplicates
+// regardless of what ID they happen to be stored under, without touching
+// anything that's genuinely unique. Nothing is deleted until Scan has run
+// and the admin explicitly confirms.
+let lastDuplicateScan = null;
+function computeActivityDedupKey(d){
+  const reportDate = d.reportDate ? new Date(d.reportDate) : null;
+  return computeStableRowId(d.sapNumber, reportDate, d.activity, d.location);
+}
+function pickDuplicateKeeper(docs){
+  const canonical = docs.find(d => d.id === computeActivityDedupKey(d.data));
+  if (canonical) return canonical;
+  return docs.slice().sort((a,b)=>{
+    const at = a.data.updatedAt ? new Date(a.data.updatedAt).getTime() : 0;
+    const bt = b.data.updatedAt ? new Date(b.data.updatedAt).getTime() : 0;
+    if (at !== bt) return bt - at;
+    const score = x => (x.data.remarks?1:0) + (Array.isArray(x.data.photos)?x.data.photos.length:0);
+    return score(b) - score(a);
+  })[0];
+}
+function scanForDuplicateActivities(){
+  const statusEl = document.getElementById('dedupStatus');
+  const resultEl = document.getElementById('dedupResult');
+  if (!cloudDb){ statusEl.textContent = 'Cloud database is not available right now.'; return; }
+  statusEl.textContent = 'Scanning the cloud database - this can take a moment for a large collection...';
+  resultEl.innerHTML = '';
+  document.getElementById('btnRemoveDuplicates').style.display = 'none';
+  cloudDb.collection(CLOUD_COLLECTION).get().then(snapshot=>{
+    const groups = new Map();
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      const key = computeActivityDedupKey(d);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ id: doc.id, data: d });
+    });
+    const dupGroups = [];
+    let duplicateDocs = 0;
+    groups.forEach(docs=>{
+      if (docs.length > 1){ duplicateDocs += docs.length - 1; dupGroups.push(docs); }
+    });
+    lastDuplicateScan = { dupGroups, totalDocs: snapshot.size, uniqueCount: groups.size };
+    statusEl.textContent = '';
+    if (!dupGroups.length){
+      resultEl.innerHTML = `<div style="color:#137a3d;font-weight:700;">No duplicates found - ${snapshot.size} activities, all unique.</div>`;
+      return;
+    }
+    const previewRows = dupGroups.slice(0,15).map(docs=>{
+      const sample = docs[0].data;
+      const d = sample.reportDate ? new Date(sample.reportDate).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+      return `<tr><td>${escapeHtml(sample.sapNumber||'-')}</td><td>${escapeHtml(sample.activity||'-')}</td><td>${escapeHtml(sample.location||'-')}</td><td>${d}</td><td>${docs.length}</td></tr>`;
+    }).join('');
+    resultEl.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <b>${snapshot.size}</b> total activities in the cloud &middot;
+        <b>${groups.size}</b> unique activities &middot;
+        <b style="color:var(--red);">${duplicateDocs}</b> duplicate cop${duplicateDocs===1?'y':'ies'} will be removed, keeping exactly one per activity.
+      </div>
+      <div class="plan-table-wrap" style="max-height:260px;">
+        <table class="data-table"><thead><tr><th>Work order</th><th>Activity</th><th>Location</th><th>Date</th><th>Copies found</th></tr></thead>
+        <tbody>${previewRows}</tbody></table>
+      </div>
+      ${dupGroups.length>15 ? `<div style="color:var(--text2);font-size:12px;margin-top:6px;">...and ${dupGroups.length-15} more duplicate group(s) not shown.</div>` : ''}
+    `;
+    document.getElementById('btnRemoveDuplicates').style.display = '';
+  }).catch(e=>{ statusEl.textContent = 'Scan failed: ' + e.message; });
+}
+function removeDuplicateActivities(){
+  if (!lastDuplicateScan || !lastDuplicateScan.dupGroups.length) return;
+  const total = lastDuplicateScan.dupGroups.reduce((s,docs)=>s+docs.length-1,0);
+  if (!confirm(`This will permanently delete ${total} duplicate activity record(s) from the cloud database, keeping exactly one copy of each. This cannot be undone. Continue?`)) return;
+  const statusEl = document.getElementById('dedupStatus');
+  const btn = document.getElementById('btnRemoveDuplicates');
+  const toDelete = [];
+  lastDuplicateScan.dupGroups.forEach(docs=>{
+    const keeper = pickDuplicateKeeper(docs);
+    docs.forEach(d=>{ if (d.id !== keeper.id) toDelete.push(d.id); });
+  });
+  btn.disabled = true;
+  const CHUNK = 400;
+  let i = 0;
+  function nextChunk(){
+    if (i >= toDelete.length){
+      statusEl.textContent = `Done. Removed ${toDelete.length} duplicate record(s).`;
+      logAudit('Removed Duplicate Activities', 'Activity', 'bulk', null, { removedCount: toDelete.length });
+      btn.style.display = 'none';
+      btn.disabled = false;
+      lastDuplicateScan = null;
+      document.getElementById('dedupResult').innerHTML = '';
+      renderCloudStatus();
+      return;
+    }
+    const batch = cloudDb.batch();
+    toDelete.slice(i, i+CHUNK).forEach(id=>{ batch.delete(cloudDb.collection(CLOUD_COLLECTION).doc(id)); });
+    batch.commit().then(()=>{
+      i += CHUNK;
+      statusEl.textContent = `Deleting... ${Math.min(i,toDelete.length)} of ${toDelete.length}`;
+      nextChunk();
+    }).catch(e=>{
+      statusEl.textContent = 'Delete failed partway through: ' + e.message;
+      btn.disabled = false;
+    });
+  }
+  nextChunk();
+}
+on('btnScanDuplicates', 'click', scanForDuplicateActivities);
+on('btnRemoveDuplicates', 'click', removeDuplicateActivities);
+
 function renderAdminPanel(){
   if (!isAdminRole()) return;
   renderUsersTable();
   renderPermMatrix();
   renderAuditLog();
   renderCloudStatus();
+  const cleanupTab = document.getElementById('adminSubtabCleanup');
+  if (cleanupTab) cleanupTab.style.display = (currentUserProfile && currentUserProfile.role==='SuperAdmin') ? '' : 'none';
 }
 
 let EMBEDDED_PASSWORD_HASH = '';
@@ -3516,7 +3646,7 @@ function escapeHtml(s){
 // In-memory only (not persisted): a quick per-column search layer on top of
 // the Activity Detail table, applied AFTER matchFilters() so it never touches
 // the main dashboard filters, state.rows, or the cloud data itself.
-let tableFilters = { workOrder:'', sortField:'', discipline:'', abc:'', activity:'', location:'', plannedHrs:'', actualHrs:'', status:'' };
+let tableFilters = { date:'', workOrder:'', sortField:'', discipline:'', abc:'', activity:'', location:'', plannedHrs:'', actualHrs:'', status:'' };
 let tableSort = { key:null, dir:1 };
 let lastActivityDetailArgs = null;
 
@@ -3537,7 +3667,32 @@ function parseNumericFilterExpr(expr){
   return null;
 }
 
+function parseDateFilterExpr(expr){
+  const s = String(expr||'').trim();
+  if (!s) return null;
+  const toParts = s.split(/\s+to\s+/i);
+  if (toParts.length===2){
+    const d1 = parseLenientDate(toParts[0]);
+    const d2 = parseLenientDate(toParts[1]);
+    if (d1 && d2){
+      const lo = Math.min(d1.getTime(), d2.getTime());
+      const hi = Math.max(d1.getTime(), d2.getTime());
+      return d => d && d.getTime()>=lo && d.getTime()<=hi;
+    }
+  }
+  const single = parseLenientDate(s);
+  if (single){
+    const k = dateKey(single);
+    return d => d && dateKey(d)===k;
+  }
+  return null;
+}
+
 function matchTableFilters(r, tf){
+  if (tf.date){
+    const pred = parseDateFilterExpr(tf.date);
+    if (pred && !pred(r.reportDate)) return false;
+  }
   if (tf.workOrder){
     const hay = `${r.sapNumber||''} ${r.referenceNumber||''}`.toLowerCase();
     if (!hay.includes(tf.workOrder.toLowerCase())) return false;
@@ -3563,7 +3718,9 @@ function sortActivityRows(rows){
   if (!tableSort.key) return rows;
   const key = tableSort.key, dir = tableSort.dir;
   const numeric = key==='plannedHours' || key==='actualHours';
+  const isDate = key==='reportDate';
   return rows.slice().sort((a,b)=>{
+    if (isDate){ return ((a[key]?a[key].getTime():0) - (b[key]?b[key].getTime():0)) * dir; }
     if (numeric){ return ((a[key]||0)-(b[key]||0)) * dir; }
     const av = String(a[key]==null?'':a[key]).toLowerCase();
     const bv = String(b[key]==null?'':b[key]).toLowerCase();
@@ -3595,6 +3752,7 @@ function refreshActivityDetailTable(){
 }
 
 const ACTIVITY_TABLE_FILTER_FIELDS = [
+  ['tfDate','date','input'],
   ['tfWorkOrder','workOrder','input'],
   ['tfSortField','sortField','input'],
   ['tfDiscipline','discipline','change'],
@@ -3680,7 +3838,7 @@ function renderActivityDetail(f, targetKey, targetDate){
     document.getElementById('planForTodayDesc').textContent = `Showing ${statusDesc} activities matching the current filters (${rows.length} found). Click a row to see its remarks.`;
   }
   updateActivityTableSortArrows();
-  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="10" style="color:var(--text2)">No activities match the selected filters.</td></tr>`; syncActivityTableStickyOffsets(); return; }
+  if (!rows.length){ tbody.innerHTML = `<tr><td colspan="11" style="color:var(--text2)">No activities match the selected filters.</td></tr>`; syncActivityTableStickyOffsets(); return; }
   const editableTable = !state.isSnapshot;
   const canEditRow = editableTable && (!currentUserProfile || hasPermission('editActivity'));
   const canDeleteRow = editableTable && (!currentUserProfile || hasPermission('deleteActivity'));
@@ -3705,8 +3863,9 @@ function renderActivityDetail(f, targetKey, targetDate){
     const activityCell = photos.length
       ? `${escapeHtml(r.activity)} <span data-photo-view data-idx="${i}" style="position:relative;display:inline-block;vertical-align:middle;margin-left:2px;cursor:zoom-in;" title="Click to view photo${photos.length>1?'s':''}"><img src="${photos[0]}" style="width:26px;height:26px;object-fit:cover;border-radius:4px;border:1px solid var(--border);display:block;">${countBadge}</span>`
       : escapeHtml(r.activity);
-    return `<tr data-clickable data-idx="${i}"><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${activityCell}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
-      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="10"><b>Remarks:</b> ${remarksText}${balanceLine}${attributionLine}</td></tr>`;
+    const dateCell = r.reportDate ? r.reportDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+    return `<tr data-clickable data-idx="${i}"><td style="white-space:nowrap;">${dateCell}</td><td>${workOrderCell}</td><td>${escapeHtml(r.sortField)}</td><td>${escapeHtml(displayDiscipline(r.discipline))}</td><td>${abcCell}</td><td>${activityCell}</td><td>${escapeHtml(r.location)}</td><td>${r.plannedHours||0}</td><td>${r.actualHours||0}</td><td><span class="badge ${badgeClass}">${r.status}</span></td>${actionsCell}</tr>
+      <tr class="remarks-row" data-remarks-for="${i}" style="display:none;"><td colspan="11"><b>Remarks:</b> ${remarksText}${balanceLine}${attributionLine}</td></tr>`;
   }).join('');
   tbody.querySelectorAll('[data-photo-view]').forEach(el=>{
     el.addEventListener('click', (e)=>{

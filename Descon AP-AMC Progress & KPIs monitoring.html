@@ -1022,6 +1022,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <button class="primary" id="btnRemoveDuplicates" style="display:none;margin-left:8px;background:var(--red);border-color:var(--red);">Remove duplicates permanently</button>
       <div class="lock-modal-status" id="dedupStatus" style="margin-top:8px;"></div>
       <div id="dedupResult" style="margin-top:12px;"></div>
+
+      <hr style="margin:24px 0;border-color:var(--border);">
+      <div style="border:2px solid var(--red);border-radius:10px;padding:14px;">
+        <div style="font-weight:700;color:var(--red);margin-bottom:6px;">Danger zone: wipe all cloud activities</div>
+        <div class="chart-desc" style="margin-bottom:10px;max-width:640px;">Permanently deletes every activity record from the cloud database - not just duplicates, including currently-valid, unique ones. Only use this if you plan to immediately re-load a fresh Excel file afterward. Ask your team to close the dashboard first: if anyone else's browser still has the old data cached locally, it can silently re-push it back to the cloud and undo this.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="wipeConfirmInput" placeholder="Type DELETE ALL to enable" style="padding:8px 10px;border-radius:8px;border:1px solid var(--border);min-width:220px;background:var(--card-solid);color:var(--text);">
+          <button id="btnWipeAllActivities" class="primary" style="background:var(--red);border-color:var(--red);" disabled>Wipe ALL cloud activities</button>
+        </div>
+        <div class="lock-modal-status" id="wipeStatus" style="margin-top:8px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2044,6 +2055,7 @@ function scanForDuplicateActivities(){
     document.getElementById('btnRemoveDuplicates').style.display = '';
   }).catch(e=>{ statusEl.textContent = 'Scan failed: ' + e.message; });
 }
+function wait(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
 function removeDuplicateActivities(){
   if (!lastDuplicateScan || !lastDuplicateScan.dupGroups.length) return;
   const total = lastDuplicateScan.dupGroups.reduce((s,docs)=>s+docs.length-1,0);
@@ -2056,9 +2068,17 @@ function removeDuplicateActivities(){
     docs.forEach(d=>{ if (d.id !== keeper.id) toDelete.push(d.id); });
   });
   btn.disabled = true;
-  const CHUNK = 400;
+  // Small chunks with a pause between them, plus automatic retry with a
+  // growing backoff specifically for resource-exhausted (rate limit) errors
+  // - deleting thousands of records is exactly the kind of burst that can
+  // trip Firestore's short-term write-rate protection even on a plan with
+  // plenty of quota left. Deleting an already-deleted doc is a harmless
+  // no-op, so it's always safe to just click this again if it stops partway.
+  const CHUNK = 200;
+  const PAUSE_MS = 400;
   let i = 0;
-  function nextChunk(){
+  function nextChunk(retriesLeft){
+    retriesLeft = retriesLeft==null ? 6 : retriesLeft;
     if (i >= toDelete.length){
       statusEl.textContent = `Done. Removed ${toDelete.length} duplicate record(s).`;
       logAudit('Removed Duplicate Activities', 'Activity', 'bulk', null, { removedCount: toDelete.length });
@@ -2074,9 +2094,15 @@ function removeDuplicateActivities(){
     batch.commit().then(()=>{
       i += CHUNK;
       statusEl.textContent = `Deleting... ${Math.min(i,toDelete.length)} of ${toDelete.length}`;
-      nextChunk();
+      return wait(PAUSE_MS).then(()=>nextChunk());
     }).catch(e=>{
-      statusEl.textContent = 'Delete failed partway through: ' + e.message;
+      if (e.code==='resource-exhausted' && retriesLeft>0){
+        const backoff = (7-retriesLeft) * 3000;
+        statusEl.textContent = `Rate limit hit - pausing ${Math.round(backoff/1000)}s before retrying (${Math.min(i,toDelete.length)} of ${toDelete.length} done so far)...`;
+        wait(backoff).then(()=>nextChunk(retriesLeft-1));
+        return;
+      }
+      statusEl.textContent = `Stopped after ${i} of ${toDelete.length}: ${e.message}. It's safe to click "Remove duplicates permanently" again to continue - already-removed records are simply skipped.`;
       btn.disabled = false;
     });
   }
@@ -2084,6 +2110,55 @@ function removeDuplicateActivities(){
 }
 on('btnScanDuplicates', 'click', scanForDuplicateActivities);
 on('btnRemoveDuplicates', 'click', removeDuplicateActivities);
+
+// --- Wipe ALL cloud activities (Super Admin only, requires typed confirm) -
+on('wipeConfirmInput', 'input', (e)=>{
+  document.getElementById('btnWipeAllActivities').disabled = e.target.value.trim() !== 'DELETE ALL';
+});
+function wipeAllCloudActivities(){
+  if (document.getElementById('wipeConfirmInput').value.trim() !== 'DELETE ALL') return;
+  if (!confirm('This will PERMANENTLY delete EVERY activity record in the cloud database, including currently-valid ones. This cannot be undone. Are you absolutely sure?')) return;
+  if (!cloudDb) return;
+  const statusEl = document.getElementById('wipeStatus');
+  const btn = document.getElementById('btnWipeAllActivities');
+  btn.disabled = true;
+  statusEl.textContent = 'Reading all activity IDs...';
+  cloudDb.collection(CLOUD_COLLECTION).get().then(snapshot=>{
+    const ids = [];
+    snapshot.forEach(doc=>ids.push(doc.id));
+    if (!ids.length){ statusEl.textContent = 'The cloud activities collection is already empty.'; btn.disabled=false; return; }
+    const CHUNK = 200, PAUSE_MS = 400;
+    let i = 0;
+    function nextChunk(retriesLeft){
+      retriesLeft = retriesLeft==null ? 6 : retriesLeft;
+      if (i >= ids.length){
+        statusEl.textContent = `Done. Deleted ${ids.length} activity record(s) from the cloud. Now clear your local history (below) and load your fresh Excel file to repopulate it.`;
+        logAudit('Wiped All Cloud Activities', 'Activity', 'bulk', null, { removedCount: ids.length });
+        document.getElementById('wipeConfirmInput').value = '';
+        renderCloudStatus();
+        return;
+      }
+      const batch = cloudDb.batch();
+      ids.slice(i, i+CHUNK).forEach(id=>batch.delete(cloudDb.collection(CLOUD_COLLECTION).doc(id)));
+      batch.commit().then(()=>{
+        i += CHUNK;
+        statusEl.textContent = `Deleting... ${Math.min(i,ids.length)} of ${ids.length}`;
+        return wait(PAUSE_MS).then(()=>nextChunk());
+      }).catch(e=>{
+        if (e.code==='resource-exhausted' && retriesLeft>0){
+          const backoff = (7-retriesLeft)*3000;
+          statusEl.textContent = `Rate limit hit - pausing ${Math.round(backoff/1000)}s before retrying (${Math.min(i,ids.length)} of ${ids.length} done so far)...`;
+          wait(backoff).then(()=>nextChunk(retriesLeft-1));
+          return;
+        }
+        statusEl.textContent = `Stopped after ${i} of ${ids.length}: ${e.message}. It's safe to type DELETE ALL and click the button again to continue - already-removed records are simply skipped.`;
+        btn.disabled = false;
+      });
+    }
+    nextChunk();
+  }).catch(e=>{ statusEl.textContent = 'Failed to read activities: ' + e.message; btn.disabled=false; });
+}
+on('btnWipeAllActivities', 'click', wipeAllCloudActivities);
 
 function renderAdminPanel(){
   if (!isAdminRole()) return;
