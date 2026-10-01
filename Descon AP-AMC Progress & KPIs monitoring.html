@@ -3096,6 +3096,25 @@ on('btnPrintEquipmentReport', 'click', ()=>{
   printOrExportPdf(`${sanitizeForFilename(equipmentId)}_Equipment_Maintenance_Report_${periodTag}`);
 });
 
+function computeDayOptionsForMonth(monthFilter){
+  let rows = state.rows;
+  if (monthFilter && monthFilter !== 'All'){
+    rows = rows.filter(r => r.reportDate && monthKey(r.reportDate) === monthFilter);
+  }
+  return ['All', ...Array.from(new Set(rows.map(r=>r.reportDate).filter(Boolean).map(dateKey))).sort()];
+}
+function refreshDayOptions(){
+  const dayEl = document.getElementById('fDay');
+  const monthEl = document.getElementById('fMonth');
+  if (!dayEl || !monthEl) return;
+  const days = computeDayOptionsForMonth(monthEl.value);
+  const prev = dayEl.value || localStorage.getItem('apstt1_day') || 'All';
+  dayEl.innerHTML = days.map(v=>`<option value="${v}">${v}</option>`).join('');
+  dayEl.value = days.includes(prev) ? prev : 'All';
+  localStorage.setItem('apstt1_day', dayEl.value);
+  dayEl.onchange = () => { localStorage.setItem('apstt1_day', dayEl.value); render(); };
+  refreshFilterCombo('fDay');
+}
 function fillFilterOptions(){
   const scopes = ['All', ...Array.from(new Set(state.rows.map(r=>r.scope).filter(Boolean)))];
   const disciplines = ['All', ...Array.from(new Set(state.rows.map(r=>r.discipline).filter(Boolean)))];
@@ -3105,7 +3124,6 @@ function fillFilterOptions(){
   const statusesFixed = ['Completed','In Progress','Not Started','Rescheduled'];
   const statusesFromData = Array.from(new Set(state.rows.map(r=>r.status).filter(Boolean)));
   const statuses = ['All', ...Array.from(new Set([...statusesFixed, ...statusesFromData]))];
-  const days = ['All', ...Array.from(new Set(state.rows.map(r=>r.reportDate).filter(Boolean).map(dateKey))).sort()];
   const sortFields = ['All', ...Array.from(new Set(state.rows.map(r=>r.sortField).filter(Boolean))).sort()];
   const months = ['All', ...Array.from(new Set(state.rows.map(r=>r.reportDate).filter(Boolean).map(monthKey))).sort()];
 
@@ -3120,7 +3138,16 @@ function fillFilterOptions(){
   setOpts('fDiscipline', disciplines, 'apstt1_discipline', 'All', disciplineOptionLabel);
   setOpts('fMonth', months, 'apstt1_month', 'All', monthOptionLabel);
   setOpts('fWeek', weeks, 'apstt1_week', 'All', weekOptionLabel);
-  setOpts('fDay', days, 'apstt1_day', 'All');
+  // Day cascades from Month: once a Month is picked, Day only ever offers
+  // dates within that month (and is reset to "All" if the previously
+  // selected day no longer belongs to the new month). Re-run whenever Month
+  // changes, in addition to the normal render().
+  refreshDayOptions();
+  document.getElementById('fMonth').onchange = () => {
+    localStorage.setItem('apstt1_month', document.getElementById('fMonth').value);
+    refreshDayOptions();
+    render();
+  };
   setOpts('fStatus', statuses, 'apstt1_status', 'All');
   setOpts('fSortField', sortFields, 'apstt1_sortfield', 'All');
   initFilterCombos();
