@@ -189,15 +189,23 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .filters-note{font-size:11.5px;color:var(--text2);width:100%;}
   .filter-combo{position:relative;}
   .filter-combo-inputwrap{position:relative;display:block;}
-  .filter-combo-input{width:100%;cursor:text;padding-right:26px;box-sizing:border-box;display:block;}
-  .filter-combo-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;display:none;}
+  .filter-combo-input{width:100%;cursor:text;padding-right:26px;padding-left:14px;box-sizing:border-box;display:block;border-radius:999px !important;}
+  .filter-combo-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;display:none;}
   .filter-combo.has-value .filter-combo-clear{display:block;}
-  .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:50;display:none;}
-  .filter-combo-option{padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .filter-combo-badge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;z-index:5;box-shadow:0 0 0 2px var(--card-solid,var(--card));}
+  .filter-combo.has-value .filter-combo-badge{display:flex;}
+  .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:50;display:none;padding:4px;}
+  .filter-combo-option{padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;border-radius:8px;}
+  .filter-combo-option-dot{width:8px;height:8px;border-radius:50%;flex:none;}
   .filter-combo-option:hover, .filter-combo-option.highlighted{background:var(--bg);}
   .filter-combo-option.selected{color:var(--blue);font-weight:700;}
   .filter-combo-empty{padding:8px 10px;font-size:12.5px;color:var(--text2);}
   .filter-combo-msg{position:absolute;top:calc(100% + 2px);left:0;right:0;font-size:11px;color:var(--red);background:var(--card-solid,var(--card));z-index:40;pointer-events:none;}
+  .active-filter-chips{display:none;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;}
+  .active-filter-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 7px 5px 12px;border-radius:999px;font-size:12px;font-weight:600;color:#fff;}
+  .active-filter-chip button{background:rgba(255,255,255,.3);border:none;color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:11px;line-height:1;padding:0;}
+  .active-filter-chip button:hover{background:rgba(255,255,255,.5);}
+  .filters-discard-link{font-size:12.5px;color:var(--text2);cursor:pointer;text-decoration:underline;}
   .filter-combo-msg:empty{display:none;}
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
   .kpi-card{position:relative;overflow:hidden;padding-left:20px;}
@@ -551,6 +559,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <button class="subtle" id="btnResetFilters" style="width:100%;box-sizing:border-box;padding:7px 14px;border:1px solid var(--border);color:var(--text2);white-space:nowrap;">Reset filters</button>
         </div>
         <div class="filters-note">Filters apply to the KPI cards, charts, and Activity detail below. Pick a Day to see just that day's progress; leave it on "All" for cumulative totals across the whole log. Every field below can be searched, typed into directly (e.g. a date, a month name, a week number), or picked from the list.</div>
+        <div class="active-filter-chips" id="activeFilterChips"></div>
       </div>
     </div>
 
@@ -2788,6 +2797,9 @@ function monthOptionLabel(v){
 // resolves free-typed text (a date, a month name, a week number, ...) to
 // the matching option before applying it as the real select's value.
 const FILTER_COMBO_IDS = ['fScope','fDiscipline','fMonth','fWeek','fDay','fStatus','fSortField'];
+const FILTER_COMBO_COLORS = { fScope:'#2f6fed', fDiscipline:'#8b5cf6', fMonth:'#06b6d4', fWeek:'#f59e0b', fDay:'#ef4444', fStatus:'#10b981', fSortField:'#6366f1' };
+const FILTER_COMBO_LABELS = { fScope:'Scope', fDiscipline:'Discipline', fMonth:'Month', fWeek:'Week', fDay:'Day', fStatus:'Status', fSortField:'Equipment' };
+const FILTER_COMBO_KEYS = { fScope:'scope', fDiscipline:'discipline', fMonth:'month', fWeek:'week', fDay:'day', fStatus:'status', fSortField:'sortField' };
 const MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
 function comboOptionsOf(select){ return Array.from(select.options); }
 function comboLabelFor(select){
@@ -2873,7 +2885,8 @@ function renderFilterComboList(id, query){
   if (!filtered.length){
     list.innerHTML = `<div class="filter-combo-empty">No matching results</div>`;
   } else {
-    list.innerHTML = filtered.map(o=>`<div class="filter-combo-option${o.value===select.value?' selected':''}" data-value="${escapeHtml(o.value)}">${escapeHtml(o.textContent)}</div>`).join('');
+    const dotColor = FILTER_COMBO_COLORS[id] || 'var(--blue)';
+    list.innerHTML = filtered.map(o=>`<div class="filter-combo-option${o.value===select.value?' selected':''}" data-value="${escapeHtml(o.value)}"><span class="filter-combo-option-dot" style="background:${dotColor}"></span>${escapeHtml(o.textContent)}</div>`).join('');
     list.querySelectorAll('.filter-combo-option').forEach(el=>{
       el.addEventListener('mousedown', (e)=>{
         e.preventDefault();
@@ -2922,6 +2935,11 @@ function initFilterCombos(){
     clearBtn.title = 'Clear (set to All)';
     clearBtn.textContent = '×';
     inputWrap.appendChild(clearBtn);
+    const badge = document.createElement('span');
+    badge.className = 'filter-combo-badge';
+    badge.style.background = FILTER_COMBO_COLORS[id] || 'var(--blue)';
+    badge.textContent = '1';
+    inputWrap.appendChild(badge);
     const list = document.createElement('div');
     list.className = 'filter-combo-list';
     wrapper.appendChild(list);
@@ -2954,6 +2972,32 @@ function initFilterCombos(){
 on('btnResetFilters', 'click', ()=>{
   FILTER_COMBO_IDS.forEach(id=> applyComboValue(id, 'All'));
 });
+
+function renderActiveFilterChips(){
+  const container = document.getElementById('activeFilterChips');
+  if (!container) return;
+  const f = currentFilters();
+  const chips = [];
+  FILTER_COMBO_IDS.forEach(id=>{
+    const key = FILTER_COMBO_KEYS[id];
+    const val = f[key];
+    if (!val || val==='All') return;
+    const select = document.getElementById(id);
+    const label = comboLabelFor(select) || val;
+    chips.push({ id, text: `${FILTER_COMBO_LABELS[id]}: ${label}`, color: FILTER_COMBO_COLORS[id] });
+  });
+  if (!chips.length){ container.innerHTML = ''; container.style.display = 'none'; return; }
+  container.style.display = 'flex';
+  container.innerHTML = chips.map(c=>
+    `<span class="active-filter-chip" style="background:${c.color}">${escapeHtml(c.text)}<button type="button" data-clear-chip="${c.id}" title="Remove this filter">&times;</button></span>`
+  ).join('') + `<a class="filters-discard-link" id="btnDiscardAllChips">Discard all</a>`;
+  container.querySelectorAll('[data-clear-chip]').forEach(btn=>{
+    btn.addEventListener('click', ()=> applyComboValue(btn.getAttribute('data-clear-chip'), 'All'));
+  });
+  on('btnDiscardAllChips', 'click', ()=>{
+    FILTER_COMBO_IDS.forEach(id=> applyComboValue(id, 'All'));
+  });
+}
 
 on('btnBuildEquipmentReport', 'click', openEquipmentReport);
 on('btnCloseEquipmentReport', 'click', closeEquipmentReport);
@@ -4011,6 +4055,7 @@ function render(){
   document.getElementById('subtitleLine').textContent = `Daily Progress Report . ${dayCount} day(s) recorded . Latest report date ${maxDateStr}`;
   const reportBtn = document.getElementById('btnBuildEquipmentReport');
   if (reportBtn) reportBtn.style.display = (f.sortField && f.sortField!=='All') ? 'inline-block' : 'none';
+  renderActiveFilterChips();
 }
 
 // --- Equipment Report Builder --------------------------------------------
