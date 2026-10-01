@@ -194,7 +194,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .filter-combo.has-value .filter-combo-clear{display:block;}
   .filter-combo-badge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;z-index:5;box-shadow:0 0 0 2px var(--card-solid,var(--card));}
   .filter-combo.has-value .filter-combo-badge{display:flex;}
-  .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:50;display:none;padding:4px;}
+  .filter-combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;min-width:200px;max-height:240px;overflow-y:auto;background:var(--card-solid,var(--card));border:1px solid var(--border);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:200;display:none;padding:4px;}
+  .filter-combo-backdrop{position:fixed;inset:0;background:rgba(15,20,30,.35);z-index:150;display:none;}
+  .filter-combo-backdrop.open{display:block;}
   .filter-combo-option{padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;border-radius:8px;}
   .filter-combo-option-dot{width:8px;height:8px;border-radius:50%;flex:none;}
   .filter-combo-option:hover, .filter-combo-option.highlighted{background:var(--bg);}
@@ -359,6 +361,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   &#128274; View-only. All filters and charts work, but adding or editing data is locked. Click "Unlock editing" in the header and enter the password if you've been given editor access.
 </div>
 
+<div id="filterComboBackdrop" class="filter-combo-backdrop"></div>
 <div id="lockModalBackdrop" class="lock-modal-backdrop"></div>
 <div id="lockModal" class="lock-modal" role="dialog" aria-modal="true">
   <div class="lock-modal-icon">&#128274;</div>
@@ -2874,6 +2877,8 @@ function closeFilterComboList(id){
   const list = wrapper.querySelector('.filter-combo-list');
   list.style.display = 'none';
   list.dataset.highlighted = '';
+  const backdrop = document.getElementById('filterComboBackdrop');
+  if (backdrop) backdrop.classList.remove('open');
 }
 function renderFilterComboList(id, query){
   const select = document.getElementById(id);
@@ -2897,6 +2902,8 @@ function renderFilterComboList(id, query){
   }
   list.style.display = 'block';
   list.dataset.highlighted = '';
+  const backdrop = document.getElementById('filterComboBackdrop');
+  if (backdrop) backdrop.classList.add('open');
 }
 function moveFilterComboHighlight(id, dir){
   const select = document.getElementById(id);
@@ -2910,6 +2917,11 @@ function moveFilterComboHighlight(id, dir){
   items[idx].classList.add('highlighted');
   items[idx].scrollIntoView({block:'nearest'});
 }
+on('filterComboBackdrop', 'click', ()=>{
+  document.querySelectorAll('.filter-combo-list').forEach(l=>{ l.style.display='none'; l.dataset.highlighted=''; });
+  document.getElementById('filterComboBackdrop').classList.remove('open');
+  if (document.activeElement && document.activeElement.classList.contains('filter-combo-input')) document.activeElement.blur();
+});
 function initFilterCombos(){
   FILTER_COMBO_IDS.forEach(id=>{
     const select = document.getElementById(id);
