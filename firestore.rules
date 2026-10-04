@@ -76,6 +76,12 @@ service cloud.firestore {
       allow delete: if myPerm('deleteImages');
     }
 
+    // --- Daily KPI/LTI/emergency-MH/bar-chart snapshot, one doc per date ---
+    match /dailyMeta/{dateKey} {
+      allow read: if isActiveUser();
+      allow write: if myPerm('editActivity') || myPerm('changeStatus') || myPerm('rescheduleActivity');
+    }
+
     // --- Lightweight connectivity probe (read-only, no real data) ---------
     match /_connectivity/{doc} {
       allow read: if signedIn();

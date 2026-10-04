@@ -1340,6 +1340,7 @@ function initCloudSync(){
         loadUserProfileAndPermissions(user);
         pullCloudActivities();
         pullEquipmentImages();
+        pullDailyMeta();
       } else {
         currentCloudUser = null;
         cloudReady = false;
@@ -1563,6 +1564,68 @@ function pullEquipmentImages(){
     });
     if (added) saveHistory(state.history);
   }).catch(e=> console.warn('Equipment image pull failed:', e.message));
+}
+
+// --- Daily KPI/LTI/emergency-MH/bar-chart snapshot sync -----------------
+// These were historically local-only (saved to this browser's localStorage
+// via the Daily Snapshot / KPI Inputs forms and Excel import), unlike
+// activities and equipment images - meaning HSE/Quality KPI values entered
+// on one device never showed up on another. Mirror them to the cloud too,
+// one document per report date, keyed by that date so every device
+// converges on the same values. Each save only writes the specific fields
+// it actually has (via {merge:true}), so saving e.g. just the KPI Inputs
+// form never clobbers that same date's LTI/emergency-MH/bar-chart fields
+// written by a different form or device.
+const DAILY_META_COLLECTION = 'dailyMeta';
+function saveDailyMetaFieldsToCloud(k, fields){
+  if (!cloudReady || !cloudDb || !k) return;
+  const payload = Object.assign({}, fields, {
+    updatedBy: currentCloudUser ? currentCloudUser.email : null,
+    updatedAt: new Date().toISOString()
+  });
+  cloudDb.collection(DAILY_META_COLLECTION).doc(k).set(payload, { merge:true }).then(markSynced).catch(e=>{
+    console.warn('Daily meta cloud save failed for', k, e.message);
+  });
+}
+function pullDailyMeta(){
+  if (!cloudDb) return;
+  cloudDb.collection(DAILY_META_COLLECTION).get().then(snapshot=>{
+    if (!state.history.kpi) state.history.kpi = {};
+    if (!state.history.emergencyMH) state.history.emergencyMH = {};
+    if (!state.history.barChart) state.history.barChart = {};
+    let changed = false;
+    snapshot.forEach(doc=>{
+      const k = doc.id;
+      const d = doc.data() || {};
+      if (d.lti!=null && state.history.lti[k]==null){ state.history.lti[k] = d.lti; changed = true; }
+      if (d.kpi && !state.history.kpi[k]){ state.history.kpi[k] = d.kpi; changed = true; }
+      if (d.emergencyMH && !state.history.emergencyMH[k]){ state.history.emergencyMH[k] = d.emergencyMH; changed = true; }
+      if (d.barChart && !state.history.barChart[k]){ state.history.barChart[k] = d.barChart; changed = true; }
+    });
+    if (changed){
+      saveHistory(state.history);
+      rebuildRowsFromHistory();
+      if (state.rows.length) render();
+    }
+    pushAllDailyMetaToCloud();
+  }).catch(e=> console.warn('Daily meta pull failed:', e.message));
+}
+function pushAllDailyMetaToCloud(){
+  if (!cloudReady || !cloudDb) return;
+  const keys = new Set([
+    ...Object.keys(state.history.lti||{}),
+    ...Object.keys(state.history.kpi||{}),
+    ...Object.keys(state.history.emergencyMH||{}),
+    ...Object.keys(state.history.barChart||{})
+  ]);
+  keys.forEach(k=>{
+    const fields = {};
+    if (state.history.lti[k]!=null) fields.lti = state.history.lti[k];
+    if (state.history.kpi && state.history.kpi[k]) fields.kpi = state.history.kpi[k];
+    if (state.history.emergencyMH && state.history.emergencyMH[k]) fields.emergencyMH = state.history.emergencyMH[k];
+    if (state.history.barChart && state.history.barChart[k]) fields.barChart = state.history.barChart[k];
+    if (Object.keys(fields).length) saveDailyMetaFieldsToCloud(k, fields);
+  });
 }
 
 // --- Roles, permissions, users, audit trail -----------------------------
@@ -4360,6 +4423,9 @@ function onWorkbookLoaded(wb, fileName, opts, rawBuf){
         qcPct: kpiSummary.qualityPct,
         qualityParts: kpiSummary.qualityParts
       };
+      const dailyMetaFields = { lti: state.history.lti[k], kpi: state.history.kpi[k] };
+      if (barChart) dailyMetaFields.barChart = barChart;
+      saveDailyMetaFieldsToCloud(k, dailyMetaFields);
     }
   });
   saveHistory(state.history);
@@ -4995,6 +5061,7 @@ on('btnSaveDailySnapshot', 'click', ()=>{
   state.history.emergencyMH[k] = { indirectMH: indirectEmergencyMH, directMH: directEmergencyMH };
   state.history.lti[k] = ltiOccurred;
   saveHistory(state.history);
+  saveDailyMetaFieldsToCloud(k, { lti: ltiOccurred, emergencyMH: state.history.emergencyMH[k] });
   rebuildRowsFromHistory();
   refreshAfterDataChange();
   alert('Saved for '+k+'.');
@@ -5038,6 +5105,7 @@ on('btnSaveKpiInputs', 'click', ()=>{
   if (!state.history.kpi) state.history.kpi = {};
   state.history.kpi[k] = result;
   saveHistory(state.history);
+  saveDailyMetaFieldsToCloud(k, { kpi: result });
   rebuildRowsFromHistory();
   refreshAfterDataChange();
   document.getElementById('kpiInputsStatus').textContent = `Saved for ${k}. Overall Schedule ${result.planningPct!=null? (result.planningPct*100).toFixed(1)+'%':'n/a'}, Quality ${(result.qcPct*100).toFixed(1)}%, HSSE ${(result.hseAchievedPct*100).toFixed(1)}%.`;
