@@ -82,6 +82,13 @@ service cloud.firestore {
       allow write: if myPerm('editActivity') || myPerm('changeStatus') || myPerm('rescheduleActivity');
     }
 
+    // --- Lessons learned, one doc per lesson, grouped by equipmentId field --
+    match /lessonsLearned/{id} {
+      allow read: if isActiveUser();
+      allow create, update: if myPerm('addLessonLearned');
+      allow delete: if myPerm('deleteLessonLearned');
+    }
+
     // --- Lightweight connectivity probe (read-only, no real data) ---------
     match /_connectivity/{doc} {
       allow read: if signedIn();

@@ -268,6 +268,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .badge-abc-b{background:#fdf1d4;color:#8a6300;}
   .badge-abc-c{background:#e2f0fb;color:#0c3962;}
   .badge-abc-d{background:#eceff3;color:#4a5568;}
+  .badge-ll-safety{background:#fbe4e4;color:#a12f28;}
+  .badge-ll-quality{background:#e2f0fb;color:#0c3962;}
+  .badge-ll-schedule{background:#fdf1d4;color:#8a6300;}
+  .badge-ll-technical{background:#eee3fb;color:#5c37a1;}
+  .badge-ll-other{background:#eceff3;color:#4a5568;}
+  .lesson-card{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--card);}
+  .lesson-card .lesson-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .lesson-card .lesson-title{font-weight:700;font-size:13.5px;}
+  .lesson-card .lesson-meta{font-size:11px;color:var(--text2);margin-bottom:6px;}
+  .lesson-card .lesson-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-top:6px;}
+  .lesson-card .lesson-text{font-size:12.5px;white-space:pre-wrap;}
   .day-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;margin:0 6px 6px 0;}
   .day-chip button{border:none;background:none;padding:0;cursor:pointer;color:var(--text2);font-size:14px;line-height:1;}
   .day-chip button:hover{color:var(--red);}
@@ -474,6 +485,32 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <tbody></tbody>
         </table>
       </div>
+    </div>
+
+    <div id="erSecLessons" class="card" style="margin-bottom:16px;">
+      <div class="chart-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span>Lessons Learned</span>
+        <button class="primary no-print" id="btnShowAddLesson" style="font-size:12.5px;padding:7px 12px;">+ Add Lesson Learned</button>
+      </div>
+      <div class="chart-desc">Prior lessons recorded against this equipment, so the same issue doesn't get repeated.</div>
+      <div id="addLessonForm" class="no-print" style="display:none;border:1px solid var(--border);border-radius:10px;padding:14px;margin:10px 0;background:var(--bg);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+          <div class="field"><label>Date</label><input type="date" id="llDate"></div>
+          <div class="field"><label>Category</label>
+            <select id="llCategory"><option>Safety</option><option>Quality</option><option>Schedule</option><option>Technical</option><option>Other</option></select>
+          </div>
+          <div class="field" style="grid-column:1/-1;"><label>Title</label><input type="text" id="llTitle" placeholder="Short summary"></div>
+          <div class="field" style="grid-column:1/-1;"><label>Related activity (optional)</label><input type="text" id="llRelatedActivity" placeholder="e.g. PSV Removal and Overhaul"></div>
+          <div class="field" style="grid-column:1/-1;"><label>What happened / root cause</label><textarea id="llDescription" rows="3" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;"></textarea></div>
+          <div class="field" style="grid-column:1/-1;"><label>Recommendation for next time</label><textarea id="llRecommendation" rows="3" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;"></textarea></div>
+        </div>
+        <div class="lock-modal-error" id="llError" style="text-align:left;min-height:auto;"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="primary" id="btnSaveLesson">Save lesson</button>
+          <button id="btnCancelAddLesson" style="border:1px solid var(--border);">Cancel</button>
+        </div>
+      </div>
+      <div id="lessonsLearnedList" style="margin-top:10px;"></div>
     </div>
 
     <div id="erSecImages" class="card" style="margin-bottom:16px;">
@@ -901,6 +938,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           </div>
           <button id="btnSaveLtiBase">Save</button>
         </div>
+      </div>
+    </div>
+
+    <div id="dashLessonsSection" style="display:none;">
+      <div class="section-title">Lessons learned for this equipment</div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="chart-desc" id="dashLessonsDesc" style="margin:0;"></div>
+        <div id="dashLessonsList" style="margin-top:10px;"></div>
       </div>
     </div>
 
@@ -1341,6 +1386,7 @@ function initCloudSync(){
         pullCloudActivities();
         pullEquipmentImages();
         pullDailyMeta();
+        pullLessonsLearned();
       } else {
         currentCloudUser = null;
         cloudReady = false;
@@ -1628,6 +1674,67 @@ function pushAllDailyMetaToCloud(){
   });
 }
 
+// --- Lessons Learned (per equipment) -------------------------------------
+// Same upsert-by-id cloud pattern as equipment images: keyed by Equipment ID
+// (sort field), independent of any single activity, so a lesson stays
+// attached to that equipment across however many activities/reports touch
+// it afterward.
+const LESSONS_LEARNED_COLLECTION = 'lessonsLearned';
+function lessonsLearnedFor(equipmentId){
+  return (state.history.lessonsLearned && state.history.lessonsLearned[equipmentId]) || [];
+}
+function addLessonLearned(equipmentId, entry){
+  if (!state.history.lessonsLearned) state.history.lessonsLearned = {};
+  if (!state.history.lessonsLearned[equipmentId]) state.history.lessonsLearned[equipmentId] = [];
+  state.history.lessonsLearned[equipmentId].push(entry);
+  saveHistory(state.history);
+  saveLessonLearnedToCloud(equipmentId, entry);
+  logAudit('Added Lesson Learned', 'LessonLearned', entry.id, null, { equipmentId, title: entry.title||'' });
+}
+function deleteLessonLearned(equipmentId, id){
+  const arr = lessonsLearnedFor(equipmentId);
+  const idx = arr.findIndex(e=>e.id===id);
+  if (idx>=0) arr.splice(idx,1);
+  saveHistory(state.history);
+  deleteLessonLearnedFromCloud(id);
+  logAudit('Deleted Lesson Learned', 'LessonLearned', id, { equipmentId }, null);
+}
+function saveLessonLearnedToCloud(equipmentId, entry){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(LESSONS_LEARNED_COLLECTION).doc(entry.id).set({
+    equipmentId,
+    date: entry.date || null,
+    category: entry.category || '',
+    title: entry.title || '',
+    description: entry.description || '',
+    recommendation: entry.recommendation || '',
+    relatedActivity: entry.relatedActivity || '',
+    createdBy: entry.createdBy || null,
+    createdAt: entry.createdAt || null
+  }).then(markSynced).catch(e=> console.warn('Cloud lesson save failed:', e.message));
+}
+function deleteLessonLearnedFromCloud(id){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(LESSONS_LEARNED_COLLECTION).doc(id).delete().then(markSynced).catch(e=> console.warn('Cloud lesson delete failed:', e.message));
+}
+function pullLessonsLearned(){
+  if (!cloudDb) return;
+  cloudDb.collection(LESSONS_LEARNED_COLLECTION).get().then(snapshot=>{
+    if (!state.history.lessonsLearned) state.history.lessonsLearned = {};
+    let added = 0;
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      if (!d || !d.equipmentId) return;
+      if (!state.history.lessonsLearned[d.equipmentId]) state.history.lessonsLearned[d.equipmentId] = [];
+      const arr = state.history.lessonsLearned[d.equipmentId];
+      if (arr.some(e=>e.id===doc.id)) return;
+      arr.push({ id: doc.id, equipmentId: d.equipmentId, date: d.date, category: d.category, title: d.title, description: d.description, recommendation: d.recommendation, relatedActivity: d.relatedActivity, createdBy: d.createdBy, createdAt: d.createdAt });
+      added++;
+    });
+    if (added){ saveHistory(state.history); if (state.rows.length) render(); }
+  }).catch(e=> console.warn('Lessons learned pull failed:', e.message));
+}
+
 // --- Roles, permissions, users, audit trail -----------------------------
 // This app is a single static HTML file talking to Firestore directly from
 // the browser - there is no backend/Cloud Functions project behind it. That
@@ -1655,14 +1762,16 @@ const PERMISSION_KEYS = [
   ['deleteImages','Delete equipment images'],
   ['importExcel','Import Excel'],
   ['exportExcel','Export Excel'],
-  ['manageUsers','Manage users & permissions']
+  ['manageUsers','Manage users & permissions'],
+  ['addLessonLearned','Add lesson learned'],
+  ['deleteLessonLearned','Delete lesson learned']
 ];
 function allPerms(v){ const o={}; PERMISSION_KEYS.forEach(([k])=>{ o[k]=v; }); return o; }
 const DEFAULT_ROLE_PERMISSIONS = {
   SuperAdmin: allPerms(true),
   Admin: Object.assign(allPerms(true), {}),
-  Engineer: Object.assign(allPerms(false), { addActivity:true, editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, uploadImages:true, importExcel:true, exportExcel:true }),
-  Supervisor: Object.assign(allPerms(false), { editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, exportExcel:true }),
+  Engineer: Object.assign(allPerms(false), { addActivity:true, editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, uploadImages:true, importExcel:true, exportExcel:true, addLessonLearned:true }),
+  Supervisor: Object.assign(allPerms(false), { editActivity:true, changeStatus:true, rescheduleActivity:true, viewReports:true, buildEquipmentReport:true, exportPdf:true, exportExcel:true, addLessonLearned:true }),
   Viewer: Object.assign(allPerms(false), { viewReports:true, exportPdf:true })
 };
 const USERS_COLLECTION = 'users';
@@ -4158,6 +4267,7 @@ function render(){
   const reportBtn = document.getElementById('btnBuildEquipmentReport');
   if (reportBtn) reportBtn.style.display = (f.sortField && f.sortField!=='All') ? 'inline-block' : 'none';
   renderActiveFilterChips();
+  renderDashLessonsPreview();
 }
 
 // --- Equipment Report Builder --------------------------------------------
@@ -4292,6 +4402,108 @@ function renderEquipmentReport(){
     </tr>`).join('') : `<tr><td colspan="8" style="color:var(--text2)">No activities found for this equipment and period.</td></tr>`;
 
   renderEquipmentImageGallery(equipmentId);
+  renderLessonsLearnedList(equipmentId);
+}
+function lessonCategoryBadgeClass(category){
+  const c = String(category||'').toLowerCase();
+  return `badge-ll-${['safety','quality','schedule','technical'].includes(c) ? c : 'other'}`;
+}
+function renderLessonsLearnedList(equipmentId){
+  const list = document.getElementById('lessonsLearnedList');
+  if (!list) return;
+  const canAdd = !currentUserProfile || hasPermission('addLessonLearned');
+  const canDelete = !currentUserProfile || hasPermission('deleteLessonLearned');
+  const addBtn = document.getElementById('btnShowAddLesson');
+  if (addBtn) addBtn.style.display = canAdd ? '' : 'none';
+  const entries = lessonsLearnedFor(equipmentId).slice().sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')));
+  if (!entries.length){
+    list.innerHTML = '<div style="color:var(--text2);font-size:13px;">No lessons learned recorded yet for this equipment.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e=>{
+    const dateLabel = e.date ? new Date(e.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+    const deleteBtn = canDelete ? `<button type="button" class="subtle no-print ll-delete" data-ll-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
+    return `<div class="lesson-card" data-ll-id="${e.id}">
+      <div class="lesson-head">
+        <span class="lesson-title">${escapeHtml(e.title||'Untitled lesson')}</span>
+        <span class="badge ${lessonCategoryBadgeClass(e.category)}">${escapeHtml(e.category||'Other')}</span>
+      </div>
+      <div class="lesson-meta">${dateLabel}${e.relatedActivity ? ' &middot; '+escapeHtml(e.relatedActivity) : ''}${e.createdBy ? ' &middot; by '+escapeHtml(e.createdBy) : ''}</div>
+      ${e.description ? `<div class="lesson-label">What happened</div><div class="lesson-text">${escapeHtml(e.description)}</div>` : ''}
+      ${e.recommendation ? `<div class="lesson-label">Recommendation</div><div class="lesson-text">${escapeHtml(e.recommendation)}</div>` : ''}
+      ${deleteBtn}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.ll-delete').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if (!confirm('Delete this lesson learned entry? This cannot be undone.')) return;
+      deleteLessonLearned(equipmentId, btn.getAttribute('data-ll-id'));
+      renderLessonsLearnedList(equipmentId);
+      renderDashLessonsPreview();
+    });
+  });
+}
+function resetAddLessonForm(){
+  document.getElementById('llDate').value = dateToInputValue(new Date());
+  document.getElementById('llCategory').value = 'Safety';
+  document.getElementById('llTitle').value = '';
+  document.getElementById('llRelatedActivity').value = '';
+  document.getElementById('llDescription').value = '';
+  document.getElementById('llRecommendation').value = '';
+  document.getElementById('llError').textContent = '';
+}
+on('btnShowAddLesson', 'click', ()=>{
+  resetAddLessonForm();
+  document.getElementById('addLessonForm').style.display = '';
+});
+on('btnCancelAddLesson', 'click', ()=>{
+  document.getElementById('addLessonForm').style.display = 'none';
+});
+on('btnSaveLesson', 'click', ()=>{
+  const equipmentId = state.currentReportEquipment;
+  if (!equipmentId) return;
+  const title = document.getElementById('llTitle').value.trim();
+  const errEl = document.getElementById('llError');
+  if (!title){ errEl.textContent = 'Give this lesson a short title first.'; return; }
+  const entry = {
+    id: genId(),
+    date: document.getElementById('llDate').value || dateToInputValue(new Date()),
+    category: document.getElementById('llCategory').value,
+    title,
+    relatedActivity: document.getElementById('llRelatedActivity').value.trim(),
+    description: document.getElementById('llDescription').value.trim(),
+    recommendation: document.getElementById('llRecommendation').value.trim(),
+    createdBy: currentCloudUser ? currentCloudUser.email : null,
+    createdAt: new Date().toISOString()
+  };
+  addLessonLearned(equipmentId, entry);
+  document.getElementById('addLessonForm').style.display = 'none';
+  renderLessonsLearnedList(equipmentId);
+  renderDashLessonsPreview();
+});
+function renderDashLessonsPreview(){
+  const section = document.getElementById('dashLessonsSection');
+  if (!section) return;
+  const f = currentFilters();
+  if (!f.sortField || f.sortField==='All'){ section.style.display = 'none'; return; }
+  const entries = lessonsLearnedFor(f.sortField).slice().sort((a,b)=> String(b.date||'').localeCompare(String(a.date||'')));
+  section.style.display = '';
+  document.getElementById('dashLessonsDesc').textContent = entries.length
+    ? `${entries.length} prior lesson${entries.length===1?'':'s'} recorded for ${f.sortField}.`
+    : `No lessons learned recorded yet for ${f.sortField}.`;
+  const listEl = document.getElementById('dashLessonsList');
+  if (!entries.length){ listEl.innerHTML = ''; return; }
+  listEl.innerHTML = entries.slice(0,5).map(e=>{
+    const dateLabel = e.date ? new Date(e.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+    return `<div class="lesson-card">
+      <div class="lesson-head">
+        <span class="lesson-title">${escapeHtml(e.title||'Untitled lesson')}</span>
+        <span class="badge ${lessonCategoryBadgeClass(e.category)}">${escapeHtml(e.category||'Other')}</span>
+      </div>
+      <div class="lesson-meta">${dateLabel}${e.relatedActivity ? ' &middot; '+escapeHtml(e.relatedActivity) : ''}</div>
+      ${e.recommendation ? `<div class="lesson-label">Recommendation</div><div class="lesson-text">${escapeHtml(e.recommendation)}</div>` : ''}
+    </div>`;
+  }).join('') + (entries.length>5 ? `<div style="color:var(--text2);font-size:12px;">...and ${entries.length-5} more. Open "Build Equipment Report" for the full list.</div>` : '');
 }
 function renderEquipmentImageGallery(equipmentId){
   const gallery = document.getElementById('erImageGallery');
