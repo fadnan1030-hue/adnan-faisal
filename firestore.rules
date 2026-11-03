@@ -89,6 +89,26 @@ service cloud.firestore {
       allow delete: if myPerm('deleteLessonLearned');
     }
 
+    // --- Project Monitoring & Control: cost / revenue / PR - sensitive -----
+    // financial data, so unlike everything else above, read access itself
+    // requires viewFinancials (not just isActiveUser()) - a role that can't
+    // see this tab in the UI can't read the raw documents either.
+    match /projectCosts/{id} {
+      allow read: if myPerm('viewFinancials');
+      allow create, update: if myPerm('addFinancials');
+      allow delete: if myPerm('deleteFinancials');
+    }
+    match /projectRevenue/{id} {
+      allow read: if myPerm('viewFinancials');
+      allow create, update: if myPerm('addFinancials');
+      allow delete: if myPerm('deleteFinancials');
+    }
+    match /purchaseRequisitions/{id} {
+      allow read: if myPerm('viewFinancials');
+      allow create, update: if myPerm('addFinancials');
+      allow delete: if myPerm('deleteFinancials');
+    }
+
     // --- Lightweight connectivity probe (read-only, no real data) ---------
     match /_connectivity/{doc} {
       allow read: if signedIn();

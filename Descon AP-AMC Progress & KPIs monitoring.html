@@ -120,8 +120,24 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   body.tab-kpi .slide-progress{display:none;}
   .slide-admin{display:none;}
   body.tab-admin .slide-admin{display:block;}
-  body.tab-admin .slide-progress, body.tab-admin .slide-kpi{display:none;}
+  body.tab-admin .slide-progress, body.tab-admin .slide-kpi, body.tab-admin .slide-projectcontrol{display:none;}
   body.tab-admin #dashboardBody, body.tab-admin #emptyState{display:none !important;}
+  .slide-projectcontrol{display:none;}
+  body.tab-projectcontrol .slide-projectcontrol{display:block;}
+  body.tab-projectcontrol .slide-progress, body.tab-projectcontrol .slide-kpi, body.tab-projectcontrol .slide-admin{display:none;}
+  body.tab-projectcontrol #dashboardBody, body.tab-projectcontrol #emptyState{display:none !important;}
+  .pc-table th,.pc-table td{white-space:nowrap;}
+  .pc-table td.pc-wrap{white-space:normal;max-width:260px;}
+  .badge-pr-draft{background:#eceff3;color:#4a5568;}
+  .badge-pr-submitted{background:#fdf1d4;color:#8a6300;}
+  .badge-pr-approved{background:#e2f6e9;color:#137a3d;}
+  .badge-pr-rejected{background:#fbe4e4;color:#a12f28;}
+  .badge-pr-poraised{background:#e2f0fb;color:#0c3962;}
+  .badge-pr-closed{background:#eceff3;color:#4a5568;}
+  .badge-rev-invoiced{background:#e2f0fb;color:#0c3962;}
+  .badge-rev-paid{background:#e2f6e9;color:#137a3d;}
+  .badge-rev-pending{background:#fdf1d4;color:#8a6300;}
+  .badge-rev-overdue{background:#fbe4e4;color:#a12f28;}
   .slide-entry .section-title, .review-entry .section-title{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;}
   .accordion-caret{font-size:12px;color:var(--text2);}
   .accordion-body{display:none;}
@@ -360,6 +376,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <div class="tabbar" id="tabBar">
   <button class="tab-btn active" data-tab="progress">Progress Dashboard</button>
   <button class="tab-btn" data-tab="kpi">KPI Monitoring</button>
+  <button class="tab-btn" data-tab="projectcontrol" id="tabBtnProjectControl" style="display:none;">Project Control</button>
   <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none;">Admin Panel</button>
 </div>
 </div>
@@ -1008,6 +1025,49 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   </div>
   </div>
 
+<div id="projectControlSection" class="slide-projectcontrol">
+  <div class="section-title">Project Monitoring &amp; Control</div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="admin-tabs" id="pcSubtabBar">
+      <button class="admin-subtab-btn active" data-pc-tab="summary">Summary</button>
+      <button class="admin-subtab-btn" data-pc-tab="cost">Cost</button>
+      <button class="admin-subtab-btn" data-pc-tab="revenue">Revenue</button>
+      <button class="admin-subtab-btn" data-pc-tab="pr">Purchase Requisitions</button>
+    </div>
+
+    <div class="admin-subtab-panel active" id="pcTabSummary">
+      <div id="pcSummaryBody"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="pcTabCost">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;">Actual project costs incurred, by category.</div>
+        <button class="primary no-print" id="btnShowAddCost" style="font-size:12.5px;padding:7px 12px;">+ Add Cost Entry</button>
+      </div>
+      <div id="pcCostForm" style="display:none;"></div>
+      <div id="pcCostTable" class="plan-table-wrap" style="max-height:460px;"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="pcTabRevenue">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;">Invoiced / received project revenue.</div>
+        <button class="primary no-print" id="btnShowAddRevenue" style="font-size:12.5px;padding:7px 12px;">+ Add Revenue Entry</button>
+      </div>
+      <div id="pcRevenueForm" style="display:none;"></div>
+      <div id="pcRevenueTable" class="plan-table-wrap" style="max-height:460px;"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="pcTabPr">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;">Purchase requisitions raised for the project.</div>
+        <button class="primary no-print" id="btnShowAddPr" style="font-size:12.5px;padding:7px 12px;">+ Add PR</button>
+      </div>
+      <div id="pcPrForm" style="display:none;"></div>
+      <div id="pcPrTable" class="plan-table-wrap" style="max-height:460px;"></div>
+    </div>
+  </div>
+</div>
+
 <div id="adminPanelSection" class="slide-admin">
   <div class="section-title">Admin Control Panel</div>
   <div class="card" style="margin-bottom:16px;">
@@ -1387,6 +1447,7 @@ function initCloudSync(){
         pullEquipmentImages();
         pullDailyMeta();
         pullLessonsLearned();
+        pullAllFinancials();
       } else {
         currentCloudUser = null;
         cloudReady = false;
@@ -1735,6 +1796,239 @@ function pullLessonsLearned(){
   }).catch(e=> console.warn('Lessons learned pull failed:', e.message));
 }
 
+// --- Project Monitoring & Control: Cost / Revenue / Purchase Requisitions -
+// All three are project-wide ledgers (not per-equipment), each stored as a
+// flat array under state.history.financials[ledgerKey] and synced to its
+// own Firestore collection, driven by one shared config so the add-form,
+// table and cloud sync logic isn't triplicated.
+const FINANCIAL_LEDGERS = {
+  cost: {
+    collection: 'projectCosts', label: 'Cost entry', formId: 'pcCostForm', tableId: 'pcCostTable', addBtnId: 'btnShowAddCost',
+    fields: [
+      ['date','Date','date'],
+      ['category','Category','select',['Manpower','Materials','Equipment','Subcontract','Travel','Other']],
+      ['description','Description','text'],
+      ['amount','Amount','number'],
+      ['currency','Currency','text','OMR'],
+      ['reference','Reference (PO/Invoice#)','text'],
+      ['remarks','Remarks','textarea']
+    ]
+  },
+  revenue: {
+    collection: 'projectRevenue', label: 'Revenue entry', formId: 'pcRevenueForm', tableId: 'pcRevenueTable', addBtnId: 'btnShowAddRevenue',
+    fields: [
+      ['date','Date','date'],
+      ['invoiceNo','Invoice #','text'],
+      ['description','Description / Milestone','text'],
+      ['amount','Amount','number'],
+      ['currency','Currency','text','OMR'],
+      ['status','Status','select',['Invoiced','Paid','Pending','Overdue']],
+      ['remarks','Remarks','textarea']
+    ]
+  },
+  pr: {
+    collection: 'purchaseRequisitions', label: 'Purchase Requisition', formId: 'pcPrForm', tableId: 'pcPrTable', addBtnId: 'btnShowAddPr',
+    fields: [
+      ['prNumber','PR #','text'],
+      ['dateRaised','Date raised','date'],
+      ['description','Description','text'],
+      ['requestedBy','Requested by','text'],
+      ['vendor','Vendor','text'],
+      ['amount','Estimated amount','number'],
+      ['currency','Currency','text','OMR'],
+      ['status','Status','select',['Draft','Submitted','Approved','Rejected','PO Raised','Closed']],
+      ['remarks','Remarks','textarea']
+    ]
+  }
+};
+function financialEntriesFor(ledgerKey){
+  return (state.history.financials && state.history.financials[ledgerKey]) || [];
+}
+function addFinancialEntry(ledgerKey, entry){
+  if (!state.history.financials) state.history.financials = {};
+  if (!state.history.financials[ledgerKey]) state.history.financials[ledgerKey] = [];
+  state.history.financials[ledgerKey].push(entry);
+  saveHistory(state.history);
+  saveFinancialEntryToCloud(ledgerKey, entry);
+  logAudit('Added '+FINANCIAL_LEDGERS[ledgerKey].label, 'Financial:'+ledgerKey, entry.id, null, entry);
+}
+function deleteFinancialEntry(ledgerKey, id){
+  const arr = financialEntriesFor(ledgerKey);
+  const idx = arr.findIndex(e=>e.id===id);
+  if (idx>=0) arr.splice(idx,1);
+  saveHistory(state.history);
+  deleteFinancialEntryFromCloud(ledgerKey, id);
+  logAudit('Deleted '+FINANCIAL_LEDGERS[ledgerKey].label, 'Financial:'+ledgerKey, id, null, null);
+}
+function saveFinancialEntryToCloud(ledgerKey, entry){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(FINANCIAL_LEDGERS[ledgerKey].collection).doc(entry.id).set(Object.assign({}, entry))
+    .then(markSynced).catch(e=> console.warn('Cloud financial save failed:', e.message));
+}
+function deleteFinancialEntryFromCloud(ledgerKey, id){
+  if (!cloudReady || !cloudDb) return;
+  cloudDb.collection(FINANCIAL_LEDGERS[ledgerKey].collection).doc(id).delete().then(markSynced).catch(e=> console.warn('Cloud financial delete failed:', e.message));
+}
+function pullFinancialEntries(ledgerKey){
+  if (!cloudDb) return;
+  cloudDb.collection(FINANCIAL_LEDGERS[ledgerKey].collection).get().then(snapshot=>{
+    if (!state.history.financials) state.history.financials = {};
+    if (!state.history.financials[ledgerKey]) state.history.financials[ledgerKey] = [];
+    const arr = state.history.financials[ledgerKey];
+    let added = 0;
+    snapshot.forEach(doc=>{
+      if (arr.some(e=>e.id===doc.id)) return;
+      arr.push(Object.assign({ id: doc.id }, doc.data()));
+      added++;
+    });
+    if (added) saveHistory(state.history);
+  }).catch(e=> console.warn('Financial pull failed for', ledgerKey, ':', e.message));
+}
+function pullAllFinancials(){ Object.keys(FINANCIAL_LEDGERS).forEach(pullFinancialEntries); }
+
+function financialFieldInputId(ledgerKey, fieldKey){ return `pcf_${ledgerKey}_${fieldKey}`; }
+function renderFinancialFormHtml(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  const inputs = cfg.fields.map(([key,label,type,extra])=>{
+    const id = financialFieldInputId(ledgerKey, key);
+    let input;
+    if (type==='select'){
+      input = `<select id="${id}">${extra.map(o=>`<option>${escapeHtml(o)}</option>`).join('')}</select>`;
+    } else if (type==='textarea'){
+      input = `<textarea id="${id}" rows="2" style="width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);box-sizing:border-box;"></textarea>`;
+    } else {
+      input = `<input type="${type}" id="${id}">`;
+    }
+    const span = type==='textarea' ? 'grid-column:1/-1;' : '';
+    return `<div class="field" style="${span}"><label>${escapeHtml(label)}</label>${input}</div>`;
+  }).join('');
+  return `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">${inputs}</div>
+    <div class="lock-modal-error" id="pcf_${ledgerKey}_error" style="text-align:left;min-height:auto;"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="primary" id="pcf_${ledgerKey}_save">Save</button>
+      <button id="pcf_${ledgerKey}_cancel" style="border:1px solid var(--border);">Cancel</button>
+    </div>`;
+}
+function resetFinancialForm(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  cfg.fields.forEach(([key,label,type,extra])=>{
+    const el = document.getElementById(financialFieldInputId(ledgerKey,key));
+    if (!el) return;
+    if (type==='date') el.value = dateToInputValue(new Date());
+    else if (type==='select') el.value = extra[0];
+    else if (type==='text' && extra) el.value = extra;
+    else el.value = '';
+  });
+  const errEl = document.getElementById(`pcf_${ledgerKey}_error`);
+  if (errEl) errEl.textContent = '';
+}
+function saveFinancialForm(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  const entry = { id: genId(), createdBy: currentCloudUser ? currentCloudUser.email : null, createdAt: new Date().toISOString() };
+  cfg.fields.forEach(([key,label,type])=>{
+    const el = document.getElementById(financialFieldInputId(ledgerKey,key));
+    if (!el) return;
+    entry[key] = type==='number' ? (Number(el.value)||0) : el.value.trim();
+  });
+  const errEl = document.getElementById(`pcf_${ledgerKey}_error`);
+  const hasAmount = cfg.fields.some(([k,l,t])=>t==='number');
+  if (hasAmount && !entry.amount){ errEl.textContent = 'Enter an amount first.'; return; }
+  addFinancialEntry(ledgerKey, entry);
+  document.getElementById(cfg.formId).style.display = 'none';
+  renderFinancialTable(ledgerKey);
+  renderProjectControlSummary();
+}
+function initFinancialForm(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  const container = document.getElementById(cfg.formId);
+  if (!container || container.dataset.built) return;
+  container.dataset.built = '1';
+  container.style.border = '1px solid var(--border)';
+  container.style.borderRadius = '10px';
+  container.style.padding = '14px';
+  container.style.marginBottom = '14px';
+  container.style.background = 'var(--bg)';
+  container.innerHTML = renderFinancialFormHtml(ledgerKey);
+  on(cfg.addBtnId, 'click', ()=>{ resetFinancialForm(ledgerKey); container.style.display = ''; });
+  const cancelBtn = document.getElementById(`pcf_${ledgerKey}_cancel`);
+  if (cancelBtn) cancelBtn.addEventListener('click', ()=>{ container.style.display = 'none'; });
+  const saveBtn = document.getElementById(`pcf_${ledgerKey}_save`);
+  if (saveBtn) saveBtn.addEventListener('click', ()=> saveFinancialForm(ledgerKey));
+}
+function financialBadgeClass(ledgerKey, status){
+  const s = String(status||'').toLowerCase().replace(/\s+/g,'');
+  if (ledgerKey==='pr') return `badge-pr-${s||'draft'}`;
+  if (ledgerKey==='revenue') return `badge-rev-${s||'pending'}`;
+  return '';
+}
+function fmtMoney(n){ return (Number(n)||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function renderFinancialTable(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  const container = document.getElementById(cfg.tableId);
+  if (!container) return;
+  const canAdd = !currentUserProfile || hasPermission('addFinancials');
+  const canDelete = !currentUserProfile || hasPermission('deleteFinancials');
+  const addBtn = document.getElementById(cfg.addBtnId);
+  if (addBtn) addBtn.style.display = canAdd ? '' : 'none';
+  const entries = financialEntriesFor(ledgerKey).slice().sort((a,b)=>{
+    const da = a.date || a.dateRaised || '';
+    const db = b.date || b.dateRaised || '';
+    return String(db).localeCompare(String(da));
+  });
+  if (!entries.length){
+    container.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:10px;">No entries yet.</div>';
+    return;
+  }
+  const statusFieldKey = cfg.fields.some(([k])=>k==='status') ? 'status' : null;
+  const headers = cfg.fields.map(([k,l])=>`<th>${escapeHtml(l)}</th>`).join('') + '<th></th>';
+  const rows = entries.map(e=>{
+    const cells = cfg.fields.map(([k,l,t])=>{
+      let v;
+      if (k===statusFieldKey) v = `<span class="badge ${financialBadgeClass(ledgerKey, e[k])}">${escapeHtml(e[k]||'')}</span>`;
+      else if (t==='number') v = fmtMoney(e[k]);
+      else v = escapeHtml(e[k]||'-');
+      const wrapClass = (t==='textarea' || t==='text') ? ' class="pc-wrap"' : '';
+      return `<td${wrapClass}>${v}</td>`;
+    }).join('');
+    const delBtn = canDelete ? `<button type="button" class="subtle pcf-delete" data-ledger="${ledgerKey}" data-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
+    return `<tr>${cells}<td>${delBtn}</td></tr>`;
+  }).join('');
+  container.innerHTML = `<table class="data-table pc-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+  container.querySelectorAll('.pcf-delete').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if (!confirm('Delete this entry? This cannot be undone.')) return;
+      const lk = btn.getAttribute('data-ledger');
+      deleteFinancialEntry(lk, btn.getAttribute('data-id'));
+      renderFinancialTable(lk);
+      renderProjectControlSummary();
+    });
+  });
+}
+function renderProjectControlSummary(){
+  const el = document.getElementById('pcSummaryBody');
+  if (!el) return;
+  const totalCost = financialEntriesFor('cost').reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const totalRevenue = financialEntriesFor('revenue').reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const margin = totalRevenue - totalCost;
+  const prEntries = financialEntriesFor('pr');
+  const prOpen = prEntries.filter(e=> !['Closed','Rejected'].includes(e.status)).length;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
+      ${kpiTile('Total cost', fmtMoney(totalCost))}
+      ${kpiTile('Total revenue', fmtMoney(totalRevenue))}
+      ${kpiTile('Margin', fmtMoney(margin))}
+      ${kpiTile('Open PRs', prOpen)}
+    </div>`;
+}
+function renderProjectControlPanel(){
+  Object.keys(FINANCIAL_LEDGERS).forEach(ledgerKey=>{
+    initFinancialForm(ledgerKey);
+    renderFinancialTable(ledgerKey);
+  });
+  renderProjectControlSummary();
+}
+
 // --- Roles, permissions, users, audit trail -----------------------------
 // This app is a single static HTML file talking to Firestore directly from
 // the browser - there is no backend/Cloud Functions project behind it. That
@@ -1764,7 +2058,10 @@ const PERMISSION_KEYS = [
   ['exportExcel','Export Excel'],
   ['manageUsers','Manage users & permissions'],
   ['addLessonLearned','Add lesson learned'],
-  ['deleteLessonLearned','Delete lesson learned']
+  ['deleteLessonLearned','Delete lesson learned'],
+  ['viewFinancials','View Project Control (cost/revenue/PR)'],
+  ['addFinancials','Add cost/revenue/PR entries'],
+  ['deleteFinancials','Delete cost/revenue/PR entries']
 ];
 function allPerms(v){ const o={}; PERMISSION_KEYS.forEach(([k])=>{ o[k]=v; }); return o; }
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -1841,6 +2138,13 @@ function applyRolePermissionUI(){
   const adminTab = document.getElementById('tabBtnAdmin');
   if (adminTab) adminTab.style.display = isAdminRole() ? '' : 'none';
   if (!isAdminRole() && document.body.classList.contains('tab-admin')){
+    const progressTab = document.querySelector('.tab-btn[data-tab="progress"]');
+    if (progressTab) progressTab.click();
+  }
+  const canViewFinancials = !!currentUserProfile && (currentUserProfile.role==='SuperAdmin' || hasPermission('viewFinancials'));
+  const pcTab = document.getElementById('tabBtnProjectControl');
+  if (pcTab) pcTab.style.display = canViewFinancials ? '' : 'none';
+  if (!canViewFinancials && document.body.classList.contains('tab-projectcontrol')){
     const progressTab = document.querySelector('.tab-btn[data-tab="progress"]');
     if (progressTab) progressTab.click();
   }
@@ -5495,17 +5799,26 @@ function openAllEntrySections(){
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      document.body.classList.remove('tab-progress','tab-kpi','tab-admin');
+      document.body.classList.remove('tab-progress','tab-kpi','tab-admin','tab-projectcontrol');
       document.body.classList.add('tab-'+btn.getAttribute('data-tab'));
       if (btn.getAttribute('data-tab')==='admin') renderAdminPanel();
+      if (btn.getAttribute('data-tab')==='projectcontrol') renderProjectControlPanel();
     });
   });
-  document.querySelectorAll('.admin-subtab-btn').forEach(btn=>{
+  document.querySelectorAll('.admin-subtab-btn[data-admin-tab]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.admin-subtab-btn').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.admin-subtab-panel').forEach(p=>p.classList.remove('active'));
+      document.querySelectorAll('#adminSubtabBar .admin-subtab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('#adminPanelSection .admin-subtab-panel').forEach(p=>p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('adminTab'+btn.getAttribute('data-admin-tab').charAt(0).toUpperCase()+btn.getAttribute('data-admin-tab').slice(1)).classList.add('active');
+    });
+  });
+  document.querySelectorAll('.admin-subtab-btn[data-pc-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#pcSubtabBar .admin-subtab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('#projectControlSection .admin-subtab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('pcTab'+btn.getAttribute('data-pc-tab').charAt(0).toUpperCase()+btn.getAttribute('data-pc-tab').slice(1)).classList.add('active');
     });
   });
 })();
