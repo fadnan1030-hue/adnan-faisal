@@ -1790,6 +1790,15 @@ function addLessonLearned(equipmentId, entry){
   saveLessonLearnedToCloud(equipmentId, entry);
   logAudit('Added Lesson Learned', 'LessonLearned', entry.id, null, { equipmentId, title: entry.title||'' });
 }
+function updateLessonLearned(equipmentId, id, patch){
+  const arr = lessonsLearnedFor(equipmentId);
+  const entry = arr.find(e=>e.id===id);
+  if (!entry) return;
+  Object.assign(entry, patch);
+  saveHistory(state.history);
+  saveLessonLearnedToCloud(equipmentId, entry);
+  logAudit('Updated Lesson Learned', 'LessonLearned', id, null, { equipmentId, title: entry.title||'' });
+}
 function deleteLessonLearned(equipmentId, id){
   const arr = lessonsLearnedFor(equipmentId);
   const idx = arr.findIndex(e=>e.id===id);
@@ -1926,6 +1935,16 @@ function deleteFinancialEntry(ledgerKey, id){
   deleteFinancialEntryFromCloud(ledgerKey, id);
   logAudit('Deleted '+FINANCIAL_LEDGERS[ledgerKey].label, 'Financial:'+ledgerKey, id, null, null);
 }
+function updateFinancialEntry(ledgerKey, id, patch){
+  const arr = financialEntriesFor(ledgerKey);
+  const entry = arr.find(e=>e.id===id);
+  if (!entry) return;
+  const before = Object.assign({}, entry);
+  Object.assign(entry, patch);
+  saveHistory(state.history);
+  saveFinancialEntryToCloud(ledgerKey, entry);
+  logAudit('Updated '+FINANCIAL_LEDGERS[ledgerKey].label, 'Financial:'+ledgerKey, id, before, patch);
+}
 function saveFinancialEntryToCloud(ledgerKey, entry){
   if (!cloudReady || !cloudDb) return;
   cloudDb.collection(FINANCIAL_LEDGERS[ledgerKey].collection).doc(entry.id).set(Object.assign({}, entry))
@@ -1976,6 +1995,7 @@ function renderFinancialFormHtml(ledgerKey){
       <button id="pcf_${ledgerKey}_cancel" style="border:1px solid var(--border);">Cancel</button>
     </div>`;
 }
+const financialEditingState = {};
 function resetFinancialForm(ledgerKey){
   const cfg = FINANCIAL_LEDGERS[ledgerKey];
   cfg.fields.forEach(([key,label,type,extra])=>{
@@ -1988,20 +2008,47 @@ function resetFinancialForm(ledgerKey){
   });
   const errEl = document.getElementById(`pcf_${ledgerKey}_error`);
   if (errEl) errEl.textContent = '';
+  financialEditingState[ledgerKey] = null;
+  const saveBtn = document.getElementById(`pcf_${ledgerKey}_save`);
+  if (saveBtn) saveBtn.textContent = 'Save';
 }
-function saveFinancialForm(ledgerKey){
+function startEditFinancialEntry(ledgerKey, id){
   const cfg = FINANCIAL_LEDGERS[ledgerKey];
-  const entry = { id: genId(), createdBy: currentCloudUser ? currentCloudUser.email : null, createdAt: new Date().toISOString() };
+  const entry = financialEntriesFor(ledgerKey).find(e=>e.id===id);
+  if (!entry) return;
   cfg.fields.forEach(([key,label,type])=>{
     const el = document.getElementById(financialFieldInputId(ledgerKey,key));
     if (!el) return;
-    entry[key] = type==='number' ? (Number(el.value)||0) : el.value.trim();
+    el.value = entry[key]!=null ? entry[key] : '';
+  });
+  const errEl = document.getElementById(`pcf_${ledgerKey}_error`);
+  if (errEl) errEl.textContent = '';
+  financialEditingState[ledgerKey] = id;
+  const saveBtn = document.getElementById(`pcf_${ledgerKey}_save`);
+  if (saveBtn) saveBtn.textContent = 'Update';
+  document.getElementById(cfg.formId).style.display = '';
+  document.getElementById(cfg.formId).scrollIntoView({behavior:'smooth', block:'center'});
+}
+function saveFinancialForm(ledgerKey){
+  const cfg = FINANCIAL_LEDGERS[ledgerKey];
+  const values = {};
+  cfg.fields.forEach(([key,label,type])=>{
+    const el = document.getElementById(financialFieldInputId(ledgerKey,key));
+    if (!el) return;
+    values[key] = type==='number' ? (Number(el.value)||0) : el.value.trim();
   });
   const errEl = document.getElementById(`pcf_${ledgerKey}_error`);
   const hasAmount = cfg.fields.some(([k,l,t])=>t==='number');
-  if (hasAmount && !entry.amount){ errEl.textContent = 'Enter an amount first.'; return; }
-  addFinancialEntry(ledgerKey, entry);
+  if (hasAmount && !values.amount){ errEl.textContent = 'Enter an amount first.'; return; }
+  const editingId = financialEditingState[ledgerKey];
+  if (editingId){
+    updateFinancialEntry(ledgerKey, editingId, values);
+  } else {
+    const entry = Object.assign({ id: genId(), createdBy: currentCloudUser ? currentCloudUser.email : null, createdAt: new Date().toISOString() }, values);
+    addFinancialEntry(ledgerKey, entry);
+  }
   document.getElementById(cfg.formId).style.display = 'none';
+  financialEditingState[ledgerKey] = null;
   if (ledgerKey==='personnelDocs') renderPersonnelDocsTable(); else renderFinancialTable(ledgerKey);
   refreshLedgerSummary(ledgerKey);
 }
@@ -2061,10 +2108,14 @@ function renderFinancialTable(ledgerKey){
       const wrapClass = (t==='textarea' || t==='text') ? ' class="pc-wrap"' : '';
       return `<td${wrapClass}>${v}</td>`;
     }).join('');
+    const editBtn = canAdd ? `<button type="button" class="subtle pcf-edit" data-ledger="${ledgerKey}" data-id="${e.id}" style="font-size:10px;padding:3px 6px;border:1px solid var(--border);">Edit</button>` : '';
     const delBtn = canDelete ? `<button type="button" class="subtle pcf-delete" data-ledger="${ledgerKey}" data-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
-    return `<tr>${cells}<td>${delBtn}</td></tr>`;
+    return `<tr>${cells}<td style="white-space:nowrap;">${editBtn} ${delBtn}</td></tr>`;
   }).join('');
   container.innerHTML = `<table class="data-table pc-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+  container.querySelectorAll('.pcf-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=> startEditFinancialEntry(btn.getAttribute('data-ledger'), btn.getAttribute('data-id')));
+  });
   container.querySelectorAll('.pcf-delete').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if (!confirm('Delete this entry? This cannot be undone.')) return;
@@ -2073,6 +2124,56 @@ function renderFinancialTable(ledgerKey){
       renderFinancialTable(lk);
       refreshLedgerSummary(lk);
     });
+  });
+}
+function monthlyCostRevenueSeries(){
+  const costByMonth = {}, revByMonth = {};
+  const months = new Set();
+  financialEntriesFor('cost').forEach(e=>{
+    const m = (e.date||'').slice(0,7);
+    if (!m) return;
+    months.add(m);
+    costByMonth[m] = (costByMonth[m]||0) + (Number(e.amount)||0);
+  });
+  financialEntriesFor('revenue').forEach(e=>{
+    const m = (e.date||'').slice(0,7);
+    if (!m) return;
+    months.add(m);
+    revByMonth[m] = (revByMonth[m]||0) + (Number(e.amount)||0);
+  });
+  const sorted = Array.from(months).sort();
+  return {
+    labels: sorted.map(m=> monthOptionLabel(m)),
+    cost: sorted.map(m=> costByMonth[m]||0),
+    revenue: sorted.map(m=> revByMonth[m]||0)
+  };
+}
+function renderCostRevenueChart(){
+  const canvas = document.getElementById('chartCostRevenue');
+  if (!canvas) return;
+  const data = monthlyCostRevenueSeries();
+  const cc = chartColors();
+  buildOrUpdateChart('chartCostRevenue', {
+    type: 'bar',
+    data: {
+      labels: data.labels.length ? data.labels : ['No dated entries yet'],
+      datasets: [
+        { label: 'Cost', data: data.labels.length ? data.cost : [0], backgroundColor: '#ef4444' },
+        { label: 'Revenue', data: data.labels.length ? data.revenue : [0], backgroundColor: '#10b981' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position:'bottom', labels:{color:cc.text} },
+        tooltip: { backgroundColor:cc.tooltipBg, titleColor:cc.tooltipText, bodyColor:cc.tooltipText },
+        datalabels: { display:false }
+      },
+      scales: {
+        x: { ticks:{color:cc.text}, grid:{color:cc.grid} },
+        y: { ticks:{color:cc.text}, grid:{color:cc.grid}, beginAtZero:true }
+      }
+    }
   });
 }
 function renderProjectControlSummary(){
@@ -2089,7 +2190,12 @@ function renderProjectControlSummary(){
       ${kpiTile('Total revenue', fmtMoney(totalRevenue))}
       ${kpiTile('Margin', fmtMoney(margin))}
       ${kpiTile('Open PRs', prOpen)}
+    </div>
+    <div class="chart-title" style="margin-top:20px;">Cost vs Revenue by month</div>
+    <div class="chart-box" style="height:280px;margin-top:10px;">
+      <canvas id="chartCostRevenue"></canvas>
     </div>`;
+  renderCostRevenueChart();
 }
 function renderProjectControlPanel(){
   ['cost','revenue','pr'].forEach(ledgerKey=>{
@@ -2129,6 +2235,7 @@ function renderPersonnelDocsTable(){
   }
   const rows = entries.map(e=>{
     const st = personnelDocStatus(e.expiryDate);
+    const editBtn = canAdd ? `<button type="button" class="subtle pcf-edit" data-ledger="personnelDocs" data-id="${e.id}" style="font-size:10px;padding:3px 6px;border:1px solid var(--border);">Edit</button>` : '';
     const delBtn = canDelete ? `<button type="button" class="subtle pcf-delete" data-ledger="personnelDocs" data-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
     return `<tr>
       <td>${escapeHtml(e.employeeId||'-')}</td>
@@ -2138,10 +2245,13 @@ function renderPersonnelDocsTable(){
       <td>${escapeHtml(e.expiryDate||'-')}</td>
       <td><span class="badge ${st.cls}">${st.label}</span></td>
       <td class="pc-wrap">${escapeHtml(e.remarks||'-')}</td>
-      <td>${delBtn}</td>
+      <td style="white-space:nowrap;">${editBtn} ${delBtn}</td>
     </tr>`;
   }).join('');
   container.innerHTML = `<table class="data-table pc-table"><thead><tr><th>Employee ID</th><th>Type</th><th>Document #</th><th>Issue date</th><th>Expiry date</th><th>Status</th><th>Remarks</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  container.querySelectorAll('.pcf-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=> startEditFinancialEntry('personnelDocs', btn.getAttribute('data-id')));
+  });
   container.querySelectorAll('.pcf-delete').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if (!confirm('Delete this document record? This cannot be undone.')) return;
@@ -4885,6 +4995,7 @@ function renderLessonsLearnedList(equipmentId){
   }
   list.innerHTML = entries.map(e=>{
     const dateLabel = e.date ? new Date(e.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+    const editBtn = canAdd ? `<button type="button" class="subtle no-print ll-edit" data-ll-id="${e.id}" style="font-size:10px;padding:3px 6px;border:1px solid var(--border);">Edit</button>` : '';
     const deleteBtn = canDelete ? `<button type="button" class="subtle no-print ll-delete" data-ll-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
     return `<div class="lesson-card" data-ll-id="${e.id}">
       <div class="lesson-head">
@@ -4894,9 +5005,12 @@ function renderLessonsLearnedList(equipmentId){
       <div class="lesson-meta">${dateLabel}${e.relatedActivity ? ' &middot; '+escapeHtml(e.relatedActivity) : ''}${e.createdBy ? ' &middot; by '+escapeHtml(e.createdBy) : ''}</div>
       ${e.description ? `<div class="lesson-label">What happened</div><div class="lesson-text">${escapeHtml(e.description)}</div>` : ''}
       ${e.recommendation ? `<div class="lesson-label">Recommendation</div><div class="lesson-text">${escapeHtml(e.recommendation)}</div>` : ''}
-      ${deleteBtn}
+      <div class="no-print" style="margin-top:6px;">${editBtn} ${deleteBtn}</div>
     </div>`;
   }).join('');
+  list.querySelectorAll('.ll-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=> startEditLesson(equipmentId, btn.getAttribute('data-ll-id')));
+  });
   list.querySelectorAll('.ll-delete').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if (!confirm('Delete this lesson learned entry? This cannot be undone.')) return;
@@ -4906,6 +5020,7 @@ function renderLessonsLearnedList(equipmentId){
     });
   });
 }
+let editingLessonId = null;
 function resetAddLessonForm(){
   document.getElementById('llDate').value = dateToInputValue(new Date());
   document.getElementById('llCategory').value = 'Safety';
@@ -4914,6 +5029,24 @@ function resetAddLessonForm(){
   document.getElementById('llDescription').value = '';
   document.getElementById('llRecommendation').value = '';
   document.getElementById('llError').textContent = '';
+  editingLessonId = null;
+  const saveBtn = document.getElementById('btnSaveLesson');
+  if (saveBtn) saveBtn.textContent = 'Save lesson';
+}
+function startEditLesson(equipmentId, id){
+  const entry = lessonsLearnedFor(equipmentId).find(e=>e.id===id);
+  if (!entry) return;
+  document.getElementById('llDate').value = entry.date || dateToInputValue(new Date());
+  document.getElementById('llCategory').value = entry.category || 'Safety';
+  document.getElementById('llTitle').value = entry.title || '';
+  document.getElementById('llRelatedActivity').value = entry.relatedActivity || '';
+  document.getElementById('llDescription').value = entry.description || '';
+  document.getElementById('llRecommendation').value = entry.recommendation || '';
+  document.getElementById('llError').textContent = '';
+  editingLessonId = id;
+  document.getElementById('btnSaveLesson').textContent = 'Update lesson';
+  document.getElementById('addLessonForm').style.display = '';
+  document.getElementById('addLessonForm').scrollIntoView({behavior:'smooth', block:'center'});
 }
 on('btnShowAddLesson', 'click', ()=>{
   resetAddLessonForm();
@@ -4928,19 +5061,22 @@ on('btnSaveLesson', 'click', ()=>{
   const title = document.getElementById('llTitle').value.trim();
   const errEl = document.getElementById('llError');
   if (!title){ errEl.textContent = 'Give this lesson a short title first.'; return; }
-  const entry = {
-    id: genId(),
+  const values = {
     date: document.getElementById('llDate').value || dateToInputValue(new Date()),
     category: document.getElementById('llCategory').value,
     title,
     relatedActivity: document.getElementById('llRelatedActivity').value.trim(),
     description: document.getElementById('llDescription').value.trim(),
-    recommendation: document.getElementById('llRecommendation').value.trim(),
-    createdBy: currentCloudUser ? currentCloudUser.email : null,
-    createdAt: new Date().toISOString()
+    recommendation: document.getElementById('llRecommendation').value.trim()
   };
-  addLessonLearned(equipmentId, entry);
+  if (editingLessonId){
+    updateLessonLearned(equipmentId, editingLessonId, values);
+  } else {
+    const entry = Object.assign({ id: genId(), createdBy: currentCloudUser ? currentCloudUser.email : null, createdAt: new Date().toISOString() }, values);
+    addLessonLearned(equipmentId, entry);
+  }
   document.getElementById('addLessonForm').style.display = 'none';
+  editingLessonId = null;
   renderLessonsLearnedList(equipmentId);
   renderDashLessonsPreview();
 });
