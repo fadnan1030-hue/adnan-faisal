@@ -120,12 +120,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   body.tab-kpi .slide-progress{display:none;}
   .slide-admin{display:none;}
   body.tab-admin .slide-admin{display:block;}
-  body.tab-admin .slide-progress, body.tab-admin .slide-kpi, body.tab-admin .slide-projectcontrol{display:none;}
+  body.tab-admin .slide-progress, body.tab-admin .slide-kpi, body.tab-admin .slide-projectcontrol, body.tab-admin .slide-manpower{display:none;}
   body.tab-admin #dashboardBody, body.tab-admin #emptyState{display:none !important;}
   .slide-projectcontrol{display:none;}
   body.tab-projectcontrol .slide-projectcontrol{display:block;}
-  body.tab-projectcontrol .slide-progress, body.tab-projectcontrol .slide-kpi, body.tab-projectcontrol .slide-admin{display:none;}
+  body.tab-projectcontrol .slide-progress, body.tab-projectcontrol .slide-kpi, body.tab-projectcontrol .slide-admin, body.tab-projectcontrol .slide-manpower{display:none;}
   body.tab-projectcontrol #dashboardBody, body.tab-projectcontrol #emptyState{display:none !important;}
+  .slide-manpower{display:none;}
+  body.tab-manpower .slide-manpower{display:block;}
+  body.tab-manpower .slide-progress, body.tab-manpower .slide-kpi, body.tab-manpower .slide-admin, body.tab-manpower .slide-projectcontrol{display:none;}
+  body.tab-manpower #dashboardBody, body.tab-manpower #emptyState{display:none !important;}
   .pc-table th,.pc-table td{white-space:nowrap;}
   .pc-table td.pc-wrap{white-space:normal;max-width:260px;}
   .badge-pr-draft{background:#eceff3;color:#4a5568;}
@@ -377,6 +381,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <button class="tab-btn active" data-tab="progress">Progress Dashboard</button>
   <button class="tab-btn" data-tab="kpi">KPI Monitoring</button>
   <button class="tab-btn" data-tab="projectcontrol" id="tabBtnProjectControl" style="display:none;">Project Control</button>
+  <button class="tab-btn" data-tab="manpower" id="tabBtnManpower" style="display:none;">Manpower</button>
   <button class="tab-btn" data-tab="admin" id="tabBtnAdmin" style="display:none;">Admin Panel</button>
 </div>
 </div>
@@ -1064,6 +1069,39 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       </div>
       <div id="pcPrForm" style="display:none;"></div>
       <div id="pcPrTable" class="plan-table-wrap" style="max-height:460px;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="manpowerSection" class="slide-manpower">
+  <div class="section-title">Manpower</div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="admin-tabs" id="mpSubtabBar">
+      <button class="admin-subtab-btn active" data-mp-tab="summary">Summary</button>
+      <button class="admin-subtab-btn" data-mp-tab="roster">Roster</button>
+      <button class="admin-subtab-btn" data-mp-tab="documents">Documents (Visa / Gate Pass / Training)</button>
+    </div>
+
+    <div class="admin-subtab-panel active" id="mpTabSummary">
+      <div id="mpSummaryBody"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="mpTabRoster">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;">The master personnel list for this project.</div>
+        <button class="primary no-print" id="btnShowAddRoster" style="font-size:12.5px;padding:7px 12px;">+ Add Personnel</button>
+      </div>
+      <div id="mpRosterForm" style="display:none;"></div>
+      <div id="mpRosterTable" class="plan-table-wrap" style="max-height:460px;"></div>
+    </div>
+
+    <div class="admin-subtab-panel" id="mpTabDocuments">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="chart-desc" style="margin:0;max-width:560px;">Visa, Gate Pass, and Training Certificate records per person. Status (Valid / Expiring / Expired) is calculated automatically from the expiry date - use the Employee ID exactly as entered on the Roster tab.</div>
+        <button class="primary no-print" id="btnShowAddDoc" style="font-size:12.5px;padding:7px 12px;">+ Add Document</button>
+      </div>
+      <div id="mpDocForm" style="display:none;"></div>
+      <div id="mpDocTable" class="plan-table-wrap" style="max-height:460px;"></div>
     </div>
   </div>
 </div>
@@ -1804,6 +1842,7 @@ function pullLessonsLearned(){
 const FINANCIAL_LEDGERS = {
   cost: {
     collection: 'projectCosts', label: 'Cost entry', formId: 'pcCostForm', tableId: 'pcCostTable', addBtnId: 'btnShowAddCost',
+    addPerm: 'addFinancials', deletePerm: 'deleteFinancials',
     fields: [
       ['date','Date','date'],
       ['category','Category','select',['Manpower','Materials','Equipment','Subcontract','Travel','Other']],
@@ -1816,6 +1855,7 @@ const FINANCIAL_LEDGERS = {
   },
   revenue: {
     collection: 'projectRevenue', label: 'Revenue entry', formId: 'pcRevenueForm', tableId: 'pcRevenueTable', addBtnId: 'btnShowAddRevenue',
+    addPerm: 'addFinancials', deletePerm: 'deleteFinancials',
     fields: [
       ['date','Date','date'],
       ['invoiceNo','Invoice #','text'],
@@ -1828,6 +1868,7 @@ const FINANCIAL_LEDGERS = {
   },
   pr: {
     collection: 'purchaseRequisitions', label: 'Purchase Requisition', formId: 'pcPrForm', tableId: 'pcPrTable', addBtnId: 'btnShowAddPr',
+    addPerm: 'addFinancials', deletePerm: 'deleteFinancials',
     fields: [
       ['prNumber','PR #','text'],
       ['dateRaised','Date raised','date'],
@@ -1837,6 +1878,31 @@ const FINANCIAL_LEDGERS = {
       ['amount','Estimated amount','number'],
       ['currency','Currency','text','OMR'],
       ['status','Status','select',['Draft','Submitted','Approved','Rejected','PO Raised','Closed']],
+      ['remarks','Remarks','textarea']
+    ]
+  },
+  roster: {
+    collection: 'manpower', label: 'Manpower entry', formId: 'mpRosterForm', tableId: 'mpRosterTable', addBtnId: 'btnShowAddRoster',
+    addPerm: 'addManpower', deletePerm: 'deleteManpower',
+    fields: [
+      ['employeeId','Employee ID','text'],
+      ['fullName','Full name','text'],
+      ['trade','Trade / Role','text'],
+      ['nationality','Nationality','text'],
+      ['mobilizationDate','Mobilization date','date'],
+      ['status','Status','select',['Active','Demobilized']],
+      ['remarks','Remarks','textarea']
+    ]
+  },
+  personnelDocs: {
+    collection: 'personnelDocuments', label: 'Personnel document', formId: 'mpDocForm', tableId: 'mpDocTable', addBtnId: 'btnShowAddDoc',
+    addPerm: 'addManpower', deletePerm: 'deleteManpower',
+    fields: [
+      ['employeeId','Employee ID','text'],
+      ['docType','Document type','select',['Visa','Gate Pass','Training Certificate']],
+      ['documentNumber','Document #','text'],
+      ['issueDate','Issue date','date'],
+      ['expiryDate','Expiry date','date'],
       ['remarks','Remarks','textarea']
     ]
   }
@@ -1936,8 +2002,12 @@ function saveFinancialForm(ledgerKey){
   if (hasAmount && !entry.amount){ errEl.textContent = 'Enter an amount first.'; return; }
   addFinancialEntry(ledgerKey, entry);
   document.getElementById(cfg.formId).style.display = 'none';
-  renderFinancialTable(ledgerKey);
-  renderProjectControlSummary();
+  if (ledgerKey==='personnelDocs') renderPersonnelDocsTable(); else renderFinancialTable(ledgerKey);
+  refreshLedgerSummary(ledgerKey);
+}
+function refreshLedgerSummary(ledgerKey){
+  if (ledgerKey==='roster' || ledgerKey==='personnelDocs') renderManpowerSummary();
+  else renderProjectControlSummary();
 }
 function initFinancialForm(ledgerKey){
   const cfg = FINANCIAL_LEDGERS[ledgerKey];
@@ -1967,8 +2037,8 @@ function renderFinancialTable(ledgerKey){
   const cfg = FINANCIAL_LEDGERS[ledgerKey];
   const container = document.getElementById(cfg.tableId);
   if (!container) return;
-  const canAdd = !currentUserProfile || hasPermission('addFinancials');
-  const canDelete = !currentUserProfile || hasPermission('deleteFinancials');
+  const canAdd = !currentUserProfile || hasPermission(cfg.addPerm);
+  const canDelete = !currentUserProfile || hasPermission(cfg.deletePerm);
   const addBtn = document.getElementById(cfg.addBtnId);
   if (addBtn) addBtn.style.display = canAdd ? '' : 'none';
   const entries = financialEntriesFor(ledgerKey).slice().sort((a,b)=>{
@@ -2001,7 +2071,7 @@ function renderFinancialTable(ledgerKey){
       const lk = btn.getAttribute('data-ledger');
       deleteFinancialEntry(lk, btn.getAttribute('data-id'));
       renderFinancialTable(lk);
-      renderProjectControlSummary();
+      refreshLedgerSummary(lk);
     });
   });
 }
@@ -2022,11 +2092,90 @@ function renderProjectControlSummary(){
     </div>`;
 }
 function renderProjectControlPanel(){
-  Object.keys(FINANCIAL_LEDGERS).forEach(ledgerKey=>{
+  ['cost','revenue','pr'].forEach(ledgerKey=>{
     initFinancialForm(ledgerKey);
     renderFinancialTable(ledgerKey);
   });
   renderProjectControlSummary();
+}
+
+// --- Manpower: roster + Visa/Gate Pass/Training document tracking --------
+// Reuses the same generic ledger engine as Project Control (roster and
+// personnelDocs are entries in FINANCIAL_LEDGERS too) - only the Documents
+// table is hand-written instead of the generic renderer, since expiry
+// status (Valid / Expiring soon / Expired) is computed from today's date
+// rather than stored, so it never goes stale.
+function personnelDocStatus(expiryDate){
+  if (!expiryDate) return { label:'-', cls:'' };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(expiryDate); exp.setHours(0,0,0,0);
+  if (isNaN(exp.getTime())) return { label:'-', cls:'' };
+  const days = Math.round((exp-today)/86400000);
+  if (days < 0) return { label:'Expired', cls:'badge-pr-rejected' };
+  if (days <= 30) return { label:`Expiring in ${days}d`, cls:'badge-pr-submitted' };
+  return { label:'Valid', cls:'badge-pr-approved' };
+}
+function renderPersonnelDocsTable(){
+  const container = document.getElementById('mpDocTable');
+  if (!container) return;
+  const canAdd = !currentUserProfile || hasPermission('addManpower');
+  const canDelete = !currentUserProfile || hasPermission('deleteManpower');
+  const addBtn = document.getElementById('btnShowAddDoc');
+  if (addBtn) addBtn.style.display = canAdd ? '' : 'none';
+  const entries = financialEntriesFor('personnelDocs').slice().sort((a,b)=> String(a.expiryDate||'').localeCompare(String(b.expiryDate||'')));
+  if (!entries.length){
+    container.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:10px;">No documents recorded yet.</div>';
+    return;
+  }
+  const rows = entries.map(e=>{
+    const st = personnelDocStatus(e.expiryDate);
+    const delBtn = canDelete ? `<button type="button" class="subtle pcf-delete" data-ledger="personnelDocs" data-id="${e.id}" style="font-size:10px;padding:3px 6px;color:var(--red);border:1px solid var(--border);">Delete</button>` : '';
+    return `<tr>
+      <td>${escapeHtml(e.employeeId||'-')}</td>
+      <td>${escapeHtml(e.docType||'-')}</td>
+      <td>${escapeHtml(e.documentNumber||'-')}</td>
+      <td>${escapeHtml(e.issueDate||'-')}</td>
+      <td>${escapeHtml(e.expiryDate||'-')}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td class="pc-wrap">${escapeHtml(e.remarks||'-')}</td>
+      <td>${delBtn}</td>
+    </tr>`;
+  }).join('');
+  container.innerHTML = `<table class="data-table pc-table"><thead><tr><th>Employee ID</th><th>Type</th><th>Document #</th><th>Issue date</th><th>Expiry date</th><th>Status</th><th>Remarks</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  container.querySelectorAll('.pcf-delete').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if (!confirm('Delete this document record? This cannot be undone.')) return;
+      deleteFinancialEntry('personnelDocs', btn.getAttribute('data-id'));
+      renderPersonnelDocsTable();
+      renderManpowerSummary();
+    });
+  });
+}
+function renderManpowerSummary(){
+  const el = document.getElementById('mpSummaryBody');
+  if (!el) return;
+  const roster = financialEntriesFor('roster');
+  const activeCount = roster.filter(r=>r.status!=='Demobilized').length;
+  const docs = financialEntriesFor('personnelDocs');
+  let expired = 0, expiringSoon = 0;
+  docs.forEach(d=>{
+    const st = personnelDocStatus(d.expiryDate);
+    if (st.label==='Expired') expired++; else if (st.label.startsWith('Expiring')) expiringSoon++;
+  });
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;">
+      ${kpiTile('Active personnel', activeCount)}
+      ${kpiTile('Total documents tracked', docs.length)}
+      ${kpiTile('Expiring within 30 days', expiringSoon)}
+      ${kpiTile('Expired', expired)}
+    </div>`;
+}
+function renderManpowerPanel(){
+  initFinancialForm('roster');
+  renderFinancialTable('roster');
+  initFinancialForm('personnelDocs');
+  renderPersonnelDocsTable();
+  renderManpowerSummary();
 }
 
 // --- Roles, permissions, users, audit trail -----------------------------
@@ -2061,7 +2210,10 @@ const PERMISSION_KEYS = [
   ['deleteLessonLearned','Delete lesson learned'],
   ['viewFinancials','View Project Control (cost/revenue/PR)'],
   ['addFinancials','Add cost/revenue/PR entries'],
-  ['deleteFinancials','Delete cost/revenue/PR entries']
+  ['deleteFinancials','Delete cost/revenue/PR entries'],
+  ['viewManpower','View Manpower (roster, visa, gate pass, training)'],
+  ['addManpower','Add manpower/document entries'],
+  ['deleteManpower','Delete manpower/document entries']
 ];
 function allPerms(v){ const o={}; PERMISSION_KEYS.forEach(([k])=>{ o[k]=v; }); return o; }
 const DEFAULT_ROLE_PERMISSIONS = {
@@ -2145,6 +2297,13 @@ function applyRolePermissionUI(){
   const pcTab = document.getElementById('tabBtnProjectControl');
   if (pcTab) pcTab.style.display = canViewFinancials ? '' : 'none';
   if (!canViewFinancials && document.body.classList.contains('tab-projectcontrol')){
+    const progressTab = document.querySelector('.tab-btn[data-tab="progress"]');
+    if (progressTab) progressTab.click();
+  }
+  const canViewManpower = !!currentUserProfile && (currentUserProfile.role==='SuperAdmin' || hasPermission('viewManpower'));
+  const mpTab = document.getElementById('tabBtnManpower');
+  if (mpTab) mpTab.style.display = canViewManpower ? '' : 'none';
+  if (!canViewManpower && document.body.classList.contains('tab-manpower')){
     const progressTab = document.querySelector('.tab-btn[data-tab="progress"]');
     if (progressTab) progressTab.click();
   }
@@ -5799,10 +5958,11 @@ function openAllEntrySections(){
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      document.body.classList.remove('tab-progress','tab-kpi','tab-admin','tab-projectcontrol');
+      document.body.classList.remove('tab-progress','tab-kpi','tab-admin','tab-projectcontrol','tab-manpower');
       document.body.classList.add('tab-'+btn.getAttribute('data-tab'));
       if (btn.getAttribute('data-tab')==='admin') renderAdminPanel();
       if (btn.getAttribute('data-tab')==='projectcontrol') renderProjectControlPanel();
+      if (btn.getAttribute('data-tab')==='manpower') renderManpowerPanel();
     });
   });
   document.querySelectorAll('.admin-subtab-btn[data-admin-tab]').forEach(btn=>{
@@ -5819,6 +5979,14 @@ function openAllEntrySections(){
       document.querySelectorAll('#projectControlSection .admin-subtab-panel').forEach(p=>p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('pcTab'+btn.getAttribute('data-pc-tab').charAt(0).toUpperCase()+btn.getAttribute('data-pc-tab').slice(1)).classList.add('active');
+    });
+  });
+  document.querySelectorAll('.admin-subtab-btn[data-mp-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#mpSubtabBar .admin-subtab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('#manpowerSection .admin-subtab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('mpTab'+btn.getAttribute('data-mp-tab').charAt(0).toUpperCase()+btn.getAttribute('data-mp-tab').slice(1)).classList.add('active');
     });
   });
 })();

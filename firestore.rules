@@ -109,6 +109,20 @@ service cloud.firestore {
       allow delete: if myPerm('deleteFinancials');
     }
 
+    // --- Manpower: roster + Visa/Gate Pass/Training documents - personal ---
+    // data (nationality, document numbers), so read access also requires
+    // viewManpower rather than just isActiveUser().
+    match /manpower/{id} {
+      allow read: if myPerm('viewManpower');
+      allow create, update: if myPerm('addManpower');
+      allow delete: if myPerm('deleteManpower');
+    }
+    match /personnelDocuments/{id} {
+      allow read: if myPerm('viewManpower');
+      allow create, update: if myPerm('addManpower');
+      allow delete: if myPerm('deleteManpower');
+    }
+
     // --- Lightweight connectivity probe (read-only, no real data) ---------
     match /_connectivity/{doc} {
       allow read: if signedIn();
